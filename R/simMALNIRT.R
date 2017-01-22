@@ -1,6 +1,7 @@
 #library(MASS)
 #library(mvtnorm)
 
+#' @importFrom mvtnorm rmvnorm
 #' @export
 simdataLNRT <- function(N, K, delta, lambda, zeta.offset = 0){
 

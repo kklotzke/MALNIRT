@@ -1,3 +1,4 @@
+#' @importFrom gmp asNumeric
 #' @export
 MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NULL, inits.2 = NULL, hyper.priors = NULL, est.person = TRUE, silent = FALSE) {
 
@@ -229,11 +230,11 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / K
       SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
 
-      m0[ii-1, cc] <- asNumeric((sig2/K)^((1-N)/2) * exp(((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K))))
-      m1[ii-1, cc] <- asNumeric(exp(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) * (gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2))))
+      m0[ii-1, cc] <- gmp::asNumeric((sig2/K)^((1-N)/2) * exp(((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K))))
+      m1[ii-1, cc] <- gmp::asNumeric(exp(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) * (gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2))))
 
-      #FBF[ii-1, cc] <- asNumeric(m0[ii-1, cc] / m1[ii-1, cc])
-      FBF[ii-1, cc] <- asNumeric(log(m0[ii-1, cc]) - log(m1[ii-1, cc]))
+      #FBF[ii-1, cc] <- gmp::asNumeric(m0[ii-1, cc] / m1[ii-1, cc])
+      FBF[ii-1, cc] <- gmp::asNumeric(log(m0[ii-1, cc]) - log(m1[ii-1, cc]))
 
       ##
 
