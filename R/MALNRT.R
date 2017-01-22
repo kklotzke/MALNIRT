@@ -229,32 +229,6 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / K
       SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
 
-
-      #cat(log((a1/a2)), ",", log(sig2^((1-N)/2)), ",", log((sig2/K)^((1-N)/N)), ",", log((prod(sig2k[2:K]))^((1-N)/2)), ",", (((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K))), "\n")
-
-      #m0[ii-1, cc] <- log((a1/a2)) + log(sig2^((1-N)/2)) + log((sig2/K)^((1-N)/N)) + log((prod(sig2k[2:K]))^((1-N)/2)) + ((1-N)/(2*N) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K)))
-      #m1[ii-1, cc] <- log((prod(sig2k[2:K]))^(-(N/2)) * exp(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) * (gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2))))
-
-
-
-      #m0[ii-1, cc] <- (2*pi)^(K*(1-N)/2) * sig2^((1-N)/2) * (sig2/K)^((1-N)/N) * (prod(sig2k[2:K]))^((1-N)/2) * exp(((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K)))
-      #m1[ii-1, cc] <- (2*pi)^(-N*(K-1)/2) * (prod(sig2k[2:K]))^(-(N/2)) * exp(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) * (gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2)))
-
-      #print(((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K)))
-      #print(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) + log((gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2))))
-
-      #print(log( sig2^((1-N)/2) ))
-      #print(log( (sig2/K)^((1-N)/N)  ))
-      #print(log( (prod(sig2k[2:K]))^((1-N)/2)  ))
-
-
-
-      # Merge term containing pi as it becomes very small otherwise
-      #cat((2*pi)^((K-N)/2), ",", sig2^((1-N)/2), ", ", (sig2/K)^((1-N)/N), ", ", (prod(sig2k[2:K]))^((1-N)/2), "\n")
-
-      #print(exp(((1-N)/2*N) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K))))
-      #print((sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K)))
-
       m0[ii-1, cc] <- asNumeric((sig2/K)^((1-N)/2) * exp(((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K))))
       m1[ii-1, cc] <- asNumeric(exp(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) * (gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2))))
 
@@ -317,9 +291,16 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
   #browser()
   # FBF
-  m.m0 <- mean((m0[XG.burnin:(XG-1), 1] + m0[XG.burnin:(XG-1), 2]) / 2)
-  m.m1 <- mean((m1[XG.burnin:(XG-1), 1] + m1[XG.burnin:(XG-1), 2]) / 2)
-  m.FBF <- mean((FBF[XG.burnin:(XG-1), 1] + FBF[XG.burnin:(XG-1), 2]) / 2)
+  raw.m0 <- (m0[XG.burnin:(XG-1), 1] + m0[XG.burnin:(XG-1), 2]) / 2
+  raw.m1 <- (m1[XG.burnin:(XG-1), 1] + m1[XG.burnin:(XG-1), 2]) / 2
+  raw.FBF <- (FBF[XG.burnin:(XG-1), 1] + FBF[XG.burnin:(XG-1), 2]) / 2
+  valid.m0 <- !is.nan(raw.m0)
+  valid.m1 <- !is.nan(raw.m1)
+  valid.FBF <- valid.m0 * valid.m1
+  m.m0 <- mean(raw.m0[valid.FBF])
+  m.m1 <- mean(raw.m1[valid.FBF])
+  m.FBF <- mean(raw.FBF[valid.FBF])
+  FBF.perc.valid <- mean(valid.FBF)
 
   ### Sample person speed parameter
 
@@ -377,5 +358,5 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
   post.zeta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
 
   return(list(lambda = post.lambda, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2, delta = post.delta, zeta_i = post.zeta_i,
-         m0 = m.m0, m1 = m.m1, FBF = m.FBF))
+         m0 = m.m0, m1 = m.m1, FBF = m.FBF, FBF.perc.valid = FBF.perc.valid))
 }

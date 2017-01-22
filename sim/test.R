@@ -70,4 +70,20 @@ out3$lambda - dat3$lambda
 #mean(dat5$RT) - mean(dat5$lambda)
 
 
+data.lnirt <- simdataLNIRT(N = 100, K = 5, delta = c(0.1,0), tau = c(0.2,0), nu = rep(-0.25, 5))
+out.lnrt <- MALNRT(data.lnirt$RTY[,1:5], Group = NULL, data = NULL, XG = 1000, burnin = 0.15, est.person = F)
+out.lnrt$delta
+data.lnirt$lambda
+out.lnrt$lambda
+data.lnirt$sig2k.lnrt
+out.lnrt$sig2k[,1]
 
+out.irt <- MAIRT(data.lnirt$RTY[,11:20], Group = NULL, data = NULL, XG = 1000, burnin = 0.15, est.person = F)
+
+sim1 <- simdataLNRT(1000, 5, c(0.1, 0), zeta.offset=zeta1)
+out <- MALNRT(sim1$RT, Group = NULL, data = NULL, XG = XG, burnin = burnin, est.person = FALSE, silent = FALSE)
+out$delta
+sim1$lambda
+out$lambda
+sim1$sig2k
+out$sig2k[,1]

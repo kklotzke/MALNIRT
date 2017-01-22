@@ -14,7 +14,7 @@ for (ii in 1:rep.i)
   for(dd in 1:length(delta1))
   {
     cat(ii, ": ", dd, "\n")
-    sim1 <- simdata(100, 5, c(delta1[dd], 0), zeta.offset=zeta1)
+    sim1 <- simdataLNRT(100, 5, c(delta1[dd], 0), zeta.offset=zeta1)
     out <- MALNRT(RT, Group = NULL, data = sim1, XG = XG, burnin = burnin, est.person = FALSE, silent = TRUE)
     FBF[ii, dd] <- out$FBF
   }
