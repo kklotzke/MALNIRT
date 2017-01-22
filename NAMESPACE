@@ -2,5 +2,6 @@
 
 export(MALNRT)
 export(helmert)
-export(simMALNIRT)
-export(simdata)
+export(simdataIRT)
+export(simdataLNIRT)
+export(simdataLNRT)
