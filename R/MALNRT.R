@@ -53,28 +53,27 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
   chains.list[[1]][[1]] <- matrix(NA, nrow = XG, ncol = K) # Time intensity
   chains.list[[1]][[2]] <- matrix(NA, nrow = XG, ncol = G) # Speed group mean
   chains.list[[1]][[3]] <- array(NA, dim = c(XG, K, G+1)) # Measurement variance per item, first block across all groups
-  chains.list[[1]][[4]] <- array(NA, dim = c(XG, 1, G+1)) # Total measurement variance, first block across all groups
+  chains.list[[1]][[4]] <- array(NA, dim = c(XG, 1, G+1)) # Average measurement variance, first block across all groups
   chains.list[[1]][[5]] <- array(NA, dim = c(XG, 1, G+1)) # RT covariance per group, first block across all groups
-  chains.list[[1]][[5]] <- array(NA, dim = c(XG, 1, G+1)) # RT covariance per group, first block across all groups
-  chains.list[[1]][[6]] <- array(NA, dim = c(XG, nrow(RT.group[[1]]), G)) # Person speed parameter
+  chains.list[[1]][[6]] <- array(NA, dim = c(XG, N, G)) # Person speed parameter
   chains.list[[2]] <- chains.list[[1]]
   if (is.null(inits.1)) {
     inits.1 <- vector("list", 6)
     inits.1[[1]] <- rnorm(K, 10, 5) # Time intensity
     inits.1[[2]] <- rnorm(G, 10, 5) # Speed group mean
     inits.1[[3]] <- runif(K, 0.5, 1.5) # Measurement variance per item
-    inits.1[[4]] <- mean(inits.1[[3]]) # Total measurement variance
+    inits.1[[4]] <- mean(inits.1[[3]]) # Average measurement variance
     inits.1[[5]] <- runif(1, 0, 1.5) # RT covariance
-    inits.1[[6]] <- rnorm(nrow(RT.group[[1]]), 10, 5) # Person speed parameter
+    inits.1[[6]] <- rnorm(N, 10, 5) # Person speed parameter
   }
   if (is.null(inits.2)) {
     inits.2 <- vector("list", 5)
     inits.2[[1]] <- rnorm(K, 10, 5) # Time intensity
     inits.2[[2]] <- rnorm(G, 10, 5) # Speed group mean
     inits.2[[3]] <- runif(K, 0.5, 1.5) # Measurement variance per item
-    inits.2[[4]] <- mean(inits.1[[3]]) # Total measurement variance
+    inits.2[[4]] <- mean(inits.1[[3]]) # Average measurement variance
     inits.2[[5]] <- runif(1, 0, 1.5) # RT covariance
-    inits.2[[6]] <- rnorm(nrow(RT.group[[1]]), 10, 5) # Person speed parameter
+    inits.2[[6]] <- rnorm(N, 10, 5) # Person speed parameter
   }
   # First row are the initial values
   for (i in 1:2) {
