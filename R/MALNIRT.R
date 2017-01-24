@@ -188,6 +188,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         }
       }
 
+
+
+      ##### Responses #####
+
       ### Sample latent response variable ###
 
       # See Fox et al. (2016) Equation 14 and 15
@@ -233,14 +237,14 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       if(G > 1) {
         for(gg in 2:G) {
           N.g <- nrow(Z.group[[gg]])
-          var.theta[gg] <- 1/(N.g/(var.gen[gg+1]) + 1/var0.theta)
-          mu.theta[gg] <- var.theta[gg]*((N.g*(mean(beta.min1) + mean(Z.group[[gg]])))/(var.gen[gg+1]) + mu0.theta/var0.theta)
+          var.theta[gg] <- 1/(N.g/(var.gen.Z[gg+1]) + 1/var0.theta)
+          mu.theta[gg] <- var.theta[gg]*((N.g*(mean(beta.min1) + mean(Z.group[[gg]])))/(var.gen.Z[gg+1]) + mu0.theta/var0.theta)
         }
       }
 
       # Draw G speed parameter group means
       theta <- rnorm(G, mu.theta, sqrt(var.theta))
-      chain[[2]][ii, ] <- theta
+      chain[[3]][ii, ] <- theta
 
 
       ### Sample item difficulty paramaters ###
@@ -250,21 +254,12 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
       mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.min1))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
-      var.beta <- 1/(N*(var.gen[1]) + 1/var0.beta)
-      mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z)))*(var.gen[1]) + mu0.beta/var0.beta)
+      var.beta <- 1/(N*(var.gen.Z[1]) + 1/var0.beta)
+      mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z)))*(var.gen.Z[1]) + mu0.beta/var0.beta)
 
       # Draw K time intensity parameters
       chain[[1]][ii, ] <- beta <- rnorm(K, mu.beta, sqrt(var.beta))
 
-
-      ## Across all groups
-
-      ### Sample measurement error variances
-
-      # Fixed to 1
-
-      sig2 <- 1
-      sig2k <- rep(1, K)
 
       ### Sample covariance parameter
 
@@ -277,7 +272,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       SSb <- sum((mean.person - mean(errors))^2)
 
       # Draw covariance parameter
-      chain[[5]][ii,,1] <- tau <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
+      chain[[9]][ii,,1] <- tau <- 1 / rgamma(1, N/2, SSb/2) - 1/K
 
 
       ## For each group
@@ -291,24 +286,94 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         # Between sum of squares
         SSb <- sum((tmat[, 1] - sqrt(K)*(mean(errors)))^2) / K
 
-        # Draw total measurement error variance
-        chain[[4]][ii,,gg+1] <- sig2 <- 1 #1 / rgamma(1, (N.g+a.sig2)/2, (SSw+b.sig2)/2)
-
-        # Draw K individual measurement error variances
-        chain[[3]][ii,,gg+1] <- sig2k <- rep(1, K) # 1 / rgamma(K, (N.g+a.sig2)/2, (SSwk+b.sig2)/2)
-
         # Draw covariance parameter
-        chain[[5]][ii,,gg+1] <- tau <- 1 / rgamma(1, N.g/2, SSb/2) - sig2/K
+        chain[[9]][ii,,gg+1] <- tau <- 1 / rgamma(1, N.g/2, SSb/2) - sig2/K
       }
 
+
+
+
+      ##### Response times #####
+
+      ### Sample speed parameters group means ###
+
+      # Hyper parameters
+      SS <- b.zeta + sum((zeta.min1 - mean(zeta.min1))^2) + (G*n0.zeta*mean(zeta.min1))/(2*(G + n0.zeta))
+      var0.zeta <- 1 / rgamma(1, (G + a.zeta)/2, SS/2)
+      mu0.zeta <- rnorm(1, (G*var0.zeta*mean(zeta.min1))/(var0.zeta*(G + n0.zeta)), sqrt(1/(var0.zeta*(G + n0.zeta))))
+      #flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
+      var0.zeta <- 10^10
+      mu0.zeta <- 0
+
+      var.zeta <- rep(NA, G)
+      mu.zeta <- rep(NA, G)
+      var.zeta[1] <- 0
+      mu.zeta[1] <- 0
+      if(G > 1) {
+        for(gg in 2:G) {
+          N.g <- nrow(RT.group[[gg]])
+          var.zeta[gg] <- 1/(N.g/(var.gen.RT[gg+1]) + 1/var0.zeta)
+          mu.zeta[gg] <- var.zeta[gg]*((N.g*(mean(lambda.min1) - mean(RT.group[[gg]])))/(var.gen.RT[gg+1]) + mu0.zeta/var0.zeta)
+        }
+      }
+
+      # Draw G speed parameter group means
+      zeta <- rnorm(G, mu.zeta, sqrt(var.zeta))
+      chain[[4]][ii, ] <- zeta
+
+
+      ### Sample item time intensity paramaters ###
+
+      # Hyper parameters
+      SS <- b.lambda + sum((lambda.min1 - mean(lambda.min1))^2) + (K*n0.lambda*mean(lambda.min1))/(2*(K + n0.lambda))
+      var0.lambda <- 1 / rgamma(1, (K + a.lambda)/2, SS/2)
+      mu0.lambda <- rnorm(1, (K*var0.lambda*mean(lambda.min1))/(var0.lambda*(K + n0.lambda)), sqrt(1/(var0.lambda*(K + n0.lambda))))
+
+      var.lambda <- 1/(N*(var.gen.RT[1]) + 1/var0.lambda)
+      mu.lambda <- var.lambda*((N*(colMeans(RT) + mean(zeta)))*(var.gen.RT[1]) + mu0.lambda/var0.lambda)
+
+      # Draw K time intensity parameters
+      chain[[2]][ii, ] <- lambda <- rnorm(K, mu.lambda, sqrt(var.lambda))
+
+
+      ### Sample measurement error variances
+
+      # Within sum of squares
+      errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta)
+      mean.person <- apply(errors,1,mean)
+      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / K
+      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
+
+      # Draw total measurement error variance
+      chain[[4]][ii,,1] <- sig2 <- 1 / rgamma(1, (N+a.sig2)/2, (SSw+b.sig2)/2)
+
+      # Draw K individual measurement error variances
+      chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, (N+a.sig2)/2, (SSwk+b.sig2)/2)
+
+
+      ### Sample covariance parameter
+
+      # Helmert transformation
+      errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta) #+ matrix(zeta_i, nrow = N, ncol = K)
+      tmat <- errors %*% t(hmat)
+
+      # Between sum of squares
+      mean.person <- apply(errors,1,mean)
+      #SSb1 <- sum((tmat[, 1] - sqrt(K)*(mean(errors)))^2) / K
+      SSb <- sum((mean.person - mean(errors))^2)
+      #cat(SSb, ",", SSb1, "\n")
+      #SSb <- sum((mean.person - (mean(lambda) - mean(zeta_i)))^2)
+
+      # Draw covariance parameter
+      chain[[10]][ii,,1] <- delta <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
 
       if ((!silent) && (ii%%100 == 0))
         cat("Iteration ", ii, " ", "\n")
       flush.console()
     }
 
-    chain[[7]] <- Z
-    chain[[8]] <- Z.group
+    chain[[11]] <- Z
+    chain[[12]] <- Z.group
     chains.list[[cc]] <- chain
   }
 
@@ -319,28 +384,35 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   chain.1 <- chains.list[[1]]
   chain.2 <- chains.list[[2]]
   post.beta <- colMeans((chain.1[[1]][XG.burnin:XG, ] + chain.2[[1]][XG.burnin:XG, ]) / 2)
+  post.lambda <- colMeans((chain.1[[2]][XG.burnin:XG, ] + chain.2[[2]][XG.burnin:XG, ]) / 2)
   if(G > 1) {
-    post.theta <- colMeans((chain.1[[2]][XG.burnin:XG, ] + chain.2[[2]][XG.burnin:XG, ]) / 2)
+    post.theta <- colMeans((chain.1[[3]][XG.burnin:XG, ] + chain.2[[3]][XG.burnin:XG, ]) / 2)
+    post.zeta <- colMeans((chain.1[[4]][XG.burnin:XG, ] + chain.2[[4]][XG.burnin:XG, ]) / 2)
   }
   else {
-    post.theta <- mean((chain.1[[2]][XG.burnin:XG, ] + chain.2[[2]][XG.burnin:XG, ]) / 2)
+    post.theta <- mean((chain.1[[3]][XG.burnin:XG, ] + chain.2[[3]][XG.burnin:XG, ]) / 2)
+    post.zeta <- mean((chain.1[[4]][XG.burnin:XG, ] + chain.2[[4]][XG.burnin:XG, ]) / 2)
   }
-  post.sig2k <- colMeans((chain.1[[3]][XG.burnin:XG,,] + chain.2[[3]][XG.burnin:XG,,]) / 2)
-  post.sig2 <- colMeans((chain.1[[4]][XG.burnin:XG,,] + chain.2[[4]][XG.burnin:XG,,]) / 2)
-  post.tau <- colMeans((chain.1[[5]][XG.burnin:XG,,] + chain.2[[5]][XG.burnin:XG,,]) / 2)
-  post.Z <- (chain.1[[7]] + chain.2[[7]]) / 2
+  post.sig2k <- colMeans((chain.1[[7]][XG.burnin:XG,,] + chain.2[[7]][XG.burnin:XG,,]) / 2)
+  post.sig2 <- colMeans((chain.1[[8]][XG.burnin:XG,,] + chain.2[[8]][XG.burnin:XG,,]) / 2)
+  post.tau <- colMeans((chain.1[[9]][XG.burnin:XG,,] + chain.2[[9]][XG.burnin:XG,,]) / 2)
+  post.delta <- colMeans((chain.1[[10]][XG.burnin:XG,,] + chain.2[[10]][XG.burnin:XG,,]) / 2)
+  post.Z <- (chain.1[[11]] + chain.2[[11]]) / 2
   post.Z.group <- vector("list", G)
   for (gg in 1:G) {
-    post.Z.group[[gg]] <- (chain.1[[8]][[gg]] + chain.2[[8]][[gg]]) / 2
+    post.Z.group[[gg]] <- (chain.1[[12]][[gg]] + chain.2[[12]][[gg]]) / 2
   }
 
-  ### Sample person ability parameter
 
   if(est.person)
   {
+
     a.theta_i <- 1
     b.theta_i <- 1
     n0.theta_i <- 1
+    a.zeta_i <- 1
+    b.zeta_i <- 1
+    n0.zeta_i <- 1
 
     # For each chain
     for (cc in 1:2) {
@@ -350,15 +422,16 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       for (ii in 2:XG) {
         for (gg in 1:G)
         {
+          ### Sample person ability parameter
+
           Z.group <- post.Z.group
           N.g <- nrow(Z.group[[gg]])
-          sig2k.g <- post.sig2k[,gg+1] #chain[[3]][ii,,gg+1]
           tau.g <- post.tau[gg+1]
           theta.g <- post.theta[gg]
           beta <- post.beta
-          theta_i.min1 <- chain[[6]][ii-1,,gg]
+          theta_i.min1 <- chain[[5]][ii-1,,gg]
           ones <- rep(1, K)
-          varinv <- diag(1/(sig2k.g[1:K]))
+          varinv <- diag(1/(1))
           var.g <- (t(ones) %*% varinv) %*% ones
 
           # Hyper parameters
@@ -373,7 +446,33 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
           }
           # Draw N person speed parameters
           theta_i <- rnorm(N.g, mu.theta_i, sqrt(var.theta_i))
-          chain[[6]][ii,,gg] <- theta_i
+          chain[[5]][ii,,gg] <- theta_i
+
+
+          ### Sample person speed parameter
+
+          sig2k.g <- post.sig2k[,gg+1]
+          delta.g <- post.delta[gg+1]
+          zeta.g <- post.zeta[gg]
+          lambda <- post.lambda
+          zeta_i.min1 <- chain[[6]][ii-1,,gg]
+          ones <- rep(1, K)
+          varinv <- diag(1/(sig2k.g[1:K]))
+          var.g <- (t(ones) %*% varinv) %*% ones
+
+          # Hyper parameters
+          SS <- b.zeta_i + sum((zeta_i.min1 - zeta.g)^2) + (N.g*n0.zeta_i*zeta.g)/(2*(N.g + n0.zeta_i))
+          var0.zeta <- 1 / rgamma(1,(N.g + a.zeta_i)/2, SS/2)
+          mu0.zeta <- rnorm(1, (N.g*var0.zeta*zeta.g)/(var0.zeta*(N.g + n0.zeta_i)), sqrt(1/(var0.zeta*(N.g + n0.zeta_i))))
+
+          var.zeta_i <- 1/(N.g*(var.g) + 1/var0.zeta)
+          mu.zeta_i <- rep(NA, N.g)
+          for(zi in 1:N.g) {
+            mu.zeta_i[zi] <- var.zeta_i*((N.g*(mean(lambda) - mean(RT.group[[gg]][zi,])))*(var.g) + mu0.zeta/var0.zeta)
+          }
+          # Draw N person speed parameters
+          zeta_i <- rnorm(N.g, mu.zeta_i, sqrt(var.zeta_i))
+          chain[[6]][ii,,gg] <- zeta_i
         }
 
         if (ii%%100 == 0)
@@ -388,7 +487,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
   chain.1 <- chains.list[[1]]
   chain.2 <- chains.list[[2]]
-  post.theta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
+  post.theta_i <- colMeans((chain.1[[5]][XG.burnin:XG,,] + chain.2[[5]][XG.burnin:XG,,]) / 2)
+  post.zeta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
 
-  return(list(beta = post.beta, theta = post.theta, sig2k = post.sig2k, sig2 = post.sig2, tau = post.tau, theta_i = post.theta_i))
+  return(list(beta = post.beta, lambda = post.lambda, theta = post.theta, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2,
+              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i))
 }
