@@ -226,7 +226,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       ### Sample speed parameters group means ###
 
       # Hyper parameters
-      #flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
+      # flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
       var0.theta <- 10^10
       mu0.theta <- 0
 
@@ -298,10 +298,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       ### Sample speed parameters group means ###
 
       # Hyper parameters
-      SS <- b.zeta + sum((zeta.min1 - mean(zeta.min1))^2) + (G*n0.zeta*mean(zeta.min1))/(2*(G + n0.zeta))
-      var0.zeta <- 1 / rgamma(1, (G + a.zeta)/2, SS/2)
-      mu0.zeta <- rnorm(1, (G*var0.zeta*mean(zeta.min1))/(var0.zeta*(G + n0.zeta)), sqrt(1/(var0.zeta*(G + n0.zeta))))
-      #flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
+      # flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
       var0.zeta <- 10^10
       mu0.zeta <- 0
 
@@ -516,6 +513,30 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   post.theta_i <- colMeans((chain.1[[5]][XG.burnin:XG,,] + chain.2[[5]][XG.burnin:XG,,]) / 2)
   post.zeta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
 
+  ### SAT ###
+  nu.obs <- numeric(N)
+  for (ii in 1:N) {
+    select.RT <- RT[-ii, 1]
+    select.Z <- Z[-ii, 1]
+    nu.obs[ii] <- cov(select.RT, select.Z)
+  }
+
+  nu.prop <- numeric(N)
+  mu.RT <- mean(post.lambda) - mean(post.zeta)
+  mu.Z <- mean(post.theta) - mean(post.beta)
+  for (dd in 1:N) {
+    mu.t1 <- sqrt(K) * mu.RT
+    var.t1 <- post.sig2 + K*post.delta
+    draw.t1 <- rnorm(N, mu.t1, sqrt(var.t1))
+
+    mu.z1 <- sqrt(K) * mu.Z
+    var.z1 <- 1 + K*post.tau
+    draw.z1 <- rnorm(N, mu.z1, sqrt(var.z1))
+
+    nu.prop[dd] <- cov(draw.t1, draw.z1)
+  }
+
+
   return(list(beta = post.beta, lambda = post.lambda, theta = post.theta, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2,
-              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i))
+              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu.obs = nu.obs, nu.prop = nu.prop, Z = Z))
 }

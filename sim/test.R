@@ -100,15 +100,30 @@ data.irt$theta_i[1:5]
 out.irt$theta_i[1:5]
 
 
-data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(-0.25, 20))
+data.lnirt <- simdataLNIRT(N = 5000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(0.5, 20))
 out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 500, est.person = TRUE)
 out.lnrt <- MALNRT(data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
-out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
+out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 500, est.person = FALSE)
+
+
+data.lnirt$beta - out.lnirt$beta
 
 out.irt$tau
 out.lnrt$delta
 out.lnirt$tau
 out.lnirt$delta
 
+hist(out.lnirt$nu.obs, breaks = 50)
+mean(out.lnirt$nu.obs)
 
+hist(out.lnirt$nu.prop, breaks = 50)
+mean(out.lnirt$nu.prop)
+
+ww1 <- out.lnirt$nu.obs/out.lnirt$nu.prop
+qq1 <- ww1 / sum(ww1)
+ind1 <- sample(1:5000, prob = qq1, replace = TRUE)
+draw.nu <- out.lnirt$nu.prop[ind1]
+hist(draw.nu)
+
+cor(out.lnirt$Z[,1], data.lnirt$RTZ[,21])
 
