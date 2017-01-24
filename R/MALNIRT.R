@@ -127,10 +127,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   }
 
   for (gg in 1:(G)) {
-    chains.list[[1]][[5]][1,,g] <- inits.1[[5]]
-    chains.list[[2]][[5]][1,,g] <- inits.2[[5]]
-    chains.list[[1]][[6]][1,,g] <- inits.1[[6]]
-    chains.list[[2]][[6]][1,,g] <- inits.2[[6]]
+    chains.list[[1]][[5]][1,,gg] <- inits.1[[5]]
+    chains.list[[2]][[5]][1,,gg] <- inits.2[[5]]
+    chains.list[[1]][[6]][1,,gg] <- inits.1[[6]]
+    chains.list[[2]][[6]][1,,gg] <- inits.2[[6]]
     chains.list[[1]][[12]][[gg]] <- matrix(0, ncol = K, nrow = nrow(Y.group[[gg]]))
     chains.list[[2]][[12]][[gg]] <- matrix(0, ncol = K, nrow = nrow(Y.group[[gg]]))
   }
@@ -287,7 +287,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         SSb <- sum((tmat[, 1] - sqrt(K)*(mean(errors)))^2) / K
 
         # Draw covariance parameter
-        chain[[9]][ii,,gg+1] <- tau <- 1 / rgamma(1, N.g/2, SSb/2) - sig2/K
+        chain[[9]][ii,,gg+1] <- tau <- 1 / rgamma(1, N.g/2, SSb/2) - 1/K
       }
 
 
@@ -345,10 +345,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
 
       # Draw total measurement error variance
-      chain[[4]][ii,,1] <- sig2 <- 1 / rgamma(1, (N+a.sig2)/2, (SSw+b.sig2)/2)
+      chain[[8]][ii,,1] <- sig2 <- 1 / rgamma(1, (N+a.sig2)/2, (SSw+b.sig2)/2)
 
       # Draw K individual measurement error variances
-      chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, (N+a.sig2)/2, (SSwk+b.sig2)/2)
+      chain[[7]][ii,,1] <- sig2k <- 1 / rgamma(K, (N+a.sig2)/2, (SSwk+b.sig2)/2)
 
 
       ### Sample covariance parameter
@@ -366,6 +366,32 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
       # Draw covariance parameter
       chain[[10]][ii,,1] <- delta <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
+
+      ## For each group
+      for(gg in 1:G) {
+        N.g <- nrow(RT.group[[gg]])
+
+        # Helmert transformation
+        errors <- RT.group[[gg]] - matrix(lambda, nrow = N.g, ncol = K, byrow = TRUE) + zeta[gg]
+        tmat <- errors %*% t(hmat)
+
+        # Between sum of squares
+        SSb <- sum((tmat[, 1] - sqrt(K)*(mean(errors)))^2) / K
+
+        # Within sum of squares
+        mean.person <- apply(errors,1,mean)
+        SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N.g))*(errors - matrix(mean.person,ncol=K,nrow=N.g)),1,sum)) / K
+        SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N.g))*(errors - matrix(mean.person,ncol=K,nrow=N.g)),2,sum)
+
+        # Draw total measurement error variance
+        chain[[8]][ii,,gg+1] <- sig2 <- 1 / rgamma(1, (N.g+a.sig2)/2, (SSw+b.sig2)/2)
+
+        # Draw K individual measurement error variances
+        chain[[7]][ii,,gg+1] <- sig2k <- 1 / rgamma(K, (N.g+a.sig2)/2, (SSwk+b.sig2)/2)
+
+        # Draw covariance parameter
+        chain[[10]][ii,,gg+1] <- delta <- 1 / rgamma(1, N.g/2, SSb/2) - sig2/K
+      }
 
       if ((!silent) && (ii%%100 == 0))
         cat("Iteration ", ii, " ", "\n")
@@ -431,7 +457,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
           beta <- post.beta
           theta_i.min1 <- chain[[5]][ii-1,,gg]
           ones <- rep(1, K)
-          varinv <- diag(1/(1))
+          varinv <- diag(1/(rep(1, K)))
           var.g <- (t(ones) %*% varinv) %*% ones
 
           # Hyper parameters

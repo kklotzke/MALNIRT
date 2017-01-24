@@ -99,3 +99,16 @@ cor(data.irt$theta_i, out.irt$theta_i)
 data.irt$theta_i[1:5]
 out.irt$theta_i[1:5]
 
+
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(-0.25, 20))
+out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 500, est.person = TRUE)
+out.lnrt <- MALNRT(data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
+out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
+
+out.irt$tau
+out.lnrt$delta
+out.lnirt$tau
+out.lnirt$delta
+
+
+
