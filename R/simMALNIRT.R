@@ -59,7 +59,7 @@ simdataIRT <- function(N, K, tau, beta, theta.offset = 0){
 
 #' @export
 simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, theta.offset = 0){
-#data.lnirt <- simdataLNIRT(N = 10, K = 5, delta = c(0.1,0), tau = c(0.2,0), nu = rep(-0.25, 5))
+#data.lnirt <- simdataLNIRT(N = 10, K = 5, delta = c(0,0.1), tau = c(0,0.2), nu = rep(-0.25, 5))
 
   # Covariance matrix RTs
   sig2k.lnrt <- runif(K, 0.5, 1.5)

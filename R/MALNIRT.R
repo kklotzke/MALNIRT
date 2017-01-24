@@ -1,11 +1,12 @@
 #' @export
-MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NULL, inits.2 = NULL, hyper.priors = NULL, est.person = TRUE, silent = FALSE) {
+MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NULL, inits.2 = NULL, hyper.priors = NULL, est.person = FALSE, silent = FALSE) {
 
   ###### Initialize ######
 
   if (!missing(data)) {
-    # Try to find Y and Group in the data set first
+    # Try to find Y, RT and Group in the data set first
     tryCatch(Y <- eval(substitute(Y), data), error=function(e) NULL)
+    tryCatch(RT <- eval(substitute(RT), data), error=function(e) NULL)
     if (!is.null(Group)) {
       tryCatch(Group <- eval(substitute(Group), data), error=function(e) NULL)
     }
@@ -21,78 +22,117 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
     groups <- unique(Group)
     G <- length(groups)
     Y.group <- vector("list", G)
+    RT.group <- vector("list", G)
     for (i in 1:G)
     {
       Y.group[[i]] <- subset(Y, Group == groups[i])
       Y.group[[i]] <- Y.group[[i]]
+      RT.group[[i]] <- subset(RT, Group == groups[i])
+      RT.group[[i]] <- RT.group[[i]]
     }
   }
   else {
     G <- 1
     Y.group <- vector("list", 1)
     Y.group[[1]] <- Y
+    RT.group <- vector("list", 1)
+    RT.group[[1]] <- RT
   }
 
   # Read hyperpriors
   if (is.null(hyper.priors)) {
-    hyper.priors <- c(0.5, 0.5, 1, 1, 1, 1, 0.001, 0.001)
+    hyper.priors <- c(0.5, 0.5, 1, 1, 1, 1, # Responses
+                      0.5, 0.5, 1, 0.1, 0.1, 1, 0.001, 0.001) # RTs
   }
-  a.beta <- hyper.priors[1]
+  a.beta <- hyper.priors[1] # Responses
   b.beta <- hyper.priors[2]
   n0.beta <- hyper.priors[3]
   a.theta <- hyper.priors[4]
   b.theta <- hyper.priors[5]
   n0.theta <- hyper.priors[6]
-  a.sig2 <- hyper.priors[7]
-  b.sig2 <- hyper.priors[8]
+  a.lambda <- hyper.priors[7] # RTs
+  b.lambda <- hyper.priors[8]
+  n0.lambda <- hyper.priors[9]
+  a.zeta <- hyper.priors[10]
+  b.zeta <- hyper.priors[11]
+  n0.zeta <- hyper.priors[12]
+  a.sig2 <- hyper.priors[13]
+  b.sig2 <- hyper.priors[14]
 
   # Initialize chains
   chains.list <- vector("list", 2) # Two chains
-  chains.list[[1]] <- vector("list", 6)
+  chains.list[[1]] <- vector("list", 12)
+
+  # Item parameters
   chains.list[[1]][[1]] <- matrix(NA, nrow = XG, ncol = K) # Item difficulty
-  chains.list[[1]][[2]] <- matrix(NA, nrow = XG, ncol = G) # Ability group mean
-  chains.list[[1]][[3]] <- array(1, dim = c(XG, K, G+1)) # Measurement variance per item, first block across all groups - fixed to 1
-  chains.list[[1]][[4]] <- array(1, dim = c(XG, 1, G+1)) # Average measurement variance, first block across all groups - fixed to 1
-  chains.list[[1]][[5]] <- array(NA, dim = c(XG, 1, G+1)) # Response covariance per group, first block across all groups
-  chains.list[[1]][[6]] <- array(NA, dim = c(XG, N, G)) # Person ability parameter
-  chains.list[[1]][[7]] <- matrix(0, ncol = K, nrow = N) # Z matrix
-  chains.list[[1]][[8]] <- vector("list", G) # List to contain Z matrices per group
+  chains.list[[1]][[2]] <- matrix(NA, nrow = XG, ncol = K) # Time intensity
+
+  # Group parameters
+  chains.list[[1]][[3]] <- matrix(NA, nrow = XG, ncol = G) # Ability group means
+  chains.list[[1]][[4]] <- matrix(NA, nrow = XG, ncol = G) # Speed group means
+
+  # Person parameters
+  chains.list[[1]][[5]] <- array(NA, dim = c(XG, N, G)) # Person ability parameter
+  chains.list[[1]][[6]] <- array(NA, dim = c(XG, N, G)) # Person speed parameter
+
+  # Measurement variance parameters
+  chains.list[[1]][[7]] <- array(1, dim = c(XG, K, G+1)) # Measurement variance for RT per item, first block across all groups
+  chains.list[[1]][[8]] <- array(1, dim = c(XG, 1, G+1)) # Average measurement variance for RT, first block across all groups
+
+  # Covariance parameters
+  chains.list[[1]][[9]] <- array(NA, dim = c(XG, 1, G+1)) # Response covariance per group, first block across all groups
+  chains.list[[1]][[10]] <- array(NA, dim = c(XG, 1, G+1)) # RT covariance per group, first block across all groups
+
+  # Latent response parameters
+  chains.list[[1]][[11]] <- matrix(0, ncol = K, nrow = N) # Z matrix
+  chains.list[[1]][[12]] <- vector("list", G) # List to contain Z matrices per group
+
   chains.list[[2]] <- chains.list[[1]]
   if (is.null(inits.1)) {
-    inits.1 <- vector("list", 6)
+    inits.1 <- vector("list", 10)
     inits.1[[1]] <- rnorm(K, 0, 1) # Item difficulty
-    inits.1[[2]] <- rnorm(G, 0, 1) # Abiliy group mean
-    inits.1[[3]] <- runif(K, 0.5, 1.5) # Measurement variance per item
-    inits.1[[4]] <- mean(inits.1[[3]]) # Average measurement variance
-    inits.1[[5]] <- runif(1, 0, 1) # Response covariance
-    inits.1[[6]] <- rnorm(N, 0, 1) # Person ability parameter
+    inits.1[[2]] <- rnorm(K, 10, 5) # Time intensity
+    inits.1[[3]] <- rnorm(G, 0, 1) # Abiliy group means
+    inits.1[[4]] <- rnorm(G, 10, 5) # Speed group means
+    inits.1[[5]] <- rnorm(N, 0, 1) # Person ability parameter
+    inits.1[[6]] <- rnorm(N, 10, 5) # Person speed parameter
+    inits.1[[7]] <- runif(K, 0.5, 1.5) # Measurement variance for RT per item
+    inits.1[[8]] <- mean(inits.1[[3]]) # Average measurement variance for RT
+    inits.1[[9]] <- runif(1, 0, 1) # Response covariance
+    inits.1[[10]] <- runif(1, 0, 1) # RT covariance
   }
   if (is.null(inits.2)) {
-    inits.2 <- vector("list", 6)
+    inits.2 <- vector("list", 10)
     inits.2[[1]] <- rnorm(K, 0, 1) # Item difficulty
-    inits.2[[2]] <- rnorm(G, 0, 1) # Abiliy group mean
-    inits.2[[3]] <- runif(K, 0.5, 1.5) # Measurement variance per item
-    inits.2[[4]] <- mean(inits.1[[3]]) # Average measurement variance
-    inits.2[[5]] <- runif(1, 0, 1) # Response covariance
-    inits.2[[6]] <- rnorm(N, 0, 1) # Person ability parameter
+    inits.2[[2]] <- rnorm(K, 10, 5) # Time intensity
+    inits.2[[3]] <- rnorm(G, 0, 1) # Abiliy group means
+    inits.2[[4]] <- rnorm(G, 10, 5) # Speed group means
+    inits.2[[5]] <- rnorm(N, 0, 1) # Person ability parameter
+    inits.2[[6]] <- rnorm(N, 10, 5) # Person speed parameter
+    inits.2[[7]] <- runif(K, 0.5, 1.5) # Measurement variance for RT per item
+    inits.2[[8]] <- mean(inits.1[[3]]) # Average measurement variance for RT
+    inits.2[[9]] <- runif(1, 0, 1) # Response covariance
+    inits.2[[10]] <- runif(1, 0, 1) # RT covariance
   }
   # First row are the initial values
-  for (i in 1:2) {
+  for (i in 1:4) {
     chains.list[[1]][[i]][1, ] <- inits.1[[i]]
     chains.list[[2]][[i]][1, ] <- inits.2[[i]]
-
-    for (gg in 1:G) {
-      chains.list[[i]][[8]][[gg]] <- matrix(0, ncol = K, nrow = nrow(Y.group[[gg]]))
+  }
+  for (i in 7:10) {
+    for (gg in 1:(G+1)) {
+      chains.list[[1]][[i]][1,,gg] <- inits.1[[i]]
+      chains.list[[2]][[i]][1,,gg] <- inits.2[[i]]
     }
   }
 
   for (gg in 1:(G)) {
-    chains.list[[1]][[5]][1,,gg] <- inits.1[[5]]
-    chains.list[[2]][[5]][1,,gg] <- inits.2[[5]]
-    chains.list[[1]][[5]][1,,gg+1] <- inits.1[[5]]
-    chains.list[[2]][[5]][1,,gg+1] <- inits.2[[5]]
-    chains.list[[1]][[6]][1,,gg] <- inits.1[[6]]
-    chains.list[[2]][[6]][1,,gg] <- inits.2[[6]]
+    chains.list[[1]][[5]][1,,g] <- inits.1[[5]]
+    chains.list[[2]][[5]][1,,g] <- inits.2[[5]]
+    chains.list[[1]][[6]][1,,g] <- inits.1[[6]]
+    chains.list[[2]][[6]][1,,g] <- inits.2[[6]]
+    chains.list[[1]][[12]][[gg]] <- matrix(0, ncol = K, nrow = nrow(Y.group[[gg]]))
+    chains.list[[2]][[12]][[gg]] <- matrix(0, ncol = K, nrow = nrow(Y.group[[gg]]))
   }
 
   # Create helmert matrix
@@ -107,30 +147,44 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
   for (cc in 1:2) {
     chain <- chains.list[[cc]] # Read the cc-th chain
 
-    Z <- chain[[7]]
-    Z.group <- chain[[8]]
+    Z <- chain[[11]]
+    Z.group <- chain[[12]]
 
     # For each iteration
     for (ii in 2:XG) {
 
       # Read values from former chain (t-1)
       beta.min1 <- chain[[1]][ii-1, ]
-      theta.min1 <- chain[[2]][ii-1, ]
-      sig2k.min1 <- chain[[3]][ii-1,,1]
-      sig2.min1 <- chain[[4]][ii-1,,1]
-      tau.min1 <- chain[[5]][ii-1,,]
+      lambda.min1 <- chain[[2]][ii-1, ]
+      theta.min1 <- chain[[3]][ii-1, ]
+      zeta.min1 <- chain[[4]][ii-1, ]
+      sig2k.min1 <- chain[[7]][ii-1,,1]
+      sig2.min1 <- chain[[8]][ii-1,,1]
+      tau.min1 <- chain[[9]][ii-1,,]
+      delta.min1 <- chain[[10]][ii-1,,]
 
-      # Generalize sigma^2 and tau
+      # Generalize sigma^2 (fixed to 1) and tau
       ones <- rep(1, K)
-      varinv <- diag(1/(sig2k.min1[1:K] + tau.min1[1]))
-      var.gen <- (t(ones) %*% varinv) %*% ones
+      varinv <- diag(1/(rep(1,K) + tau.min1[1]))
+      var.gen.Z <- (t(ones) %*% varinv) %*% ones
       if (G > 1) {
         for (gg in 1:G) {
-          sig2k.min1.g <- chain[[3]][ii-1,,gg+1]
-          varinv <- diag(1/(sig2k.min1.g[1:K]))
+          varinv <- diag(1/(rep(1,K) + tau.min1[gg+1]))
           tmp <- (t(ones) %*% varinv) %*% ones
-          tmp <- tmp + tau.min1[gg+1]
-          var.gen <- c(var.gen, tmp)
+          var.gen.Z <- c(var.gen.Z, tmp)
+        }
+      }
+
+      # Generalize sigma^2 and delta
+      ones <- rep(1, K)
+      varinv <- diag(1/(sig2k.min1[1:K] + delta.min1[1]))
+      var.gen.RT <- (t(ones) %*% varinv) %*% ones
+      if (G > 1) {
+        for (gg in 1:G) {
+          sig2k.min1.g <- chain[[7]][ii-1,,gg+1]
+          varinv <- diag(1/(sig2k.min1.g[1:K] + delta.min1[gg+1]))
+          tmp <- (t(ones) %*% varinv) %*% ones
+          var.gen.RT <- c(var.gen.RT, tmp)
         }
       }
 

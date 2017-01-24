@@ -67,7 +67,7 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
     inits.1[[6]] <- rnorm(N, 10, 5) # Person speed parameter
   }
   if (is.null(inits.2)) {
-    inits.2 <- vector("list", 5)
+    inits.2 <- vector("list", 6)
     inits.2[[1]] <- rnorm(K, 10, 5) # Time intensity
     inits.2[[2]] <- rnorm(G, 10, 5) # Speed group mean
     inits.2[[3]] <- runif(K, 0.5, 1.5) # Measurement variance per item
@@ -121,7 +121,6 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       #diag(varinv) <- 1/(sig2k.min1[1:K] + delta.min1)
       varinv <- diag(1/(sig2k.min1[1:K] + delta.min1))
       var.gen <- (t(ones) %*% varinv) %*% ones
-      var.gen <- var.gen #+ delta.min1
       if (G > 1) {
         for (gg in 1:G) {
           sig2k.min1.g <- chain[[3]][ii-1,,gg+1]
