@@ -101,11 +101,11 @@ out.irt$theta_i[1:5]
 
 
 data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(0.5, 20))
-data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0), tau = c(0,0), nu = rep(0.5, 20))
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0), tau = c(0,0), nu = rep(0.7, 20))
 
 out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 500, est.person = TRUE)
 out.lnrt <- MALNRT(data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
-out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 10000, est.person = FALSE)
+out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 1000, est.person = FALSE)
 
 
 data.lnirt$beta - out.lnirt$beta
