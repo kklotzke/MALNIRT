@@ -100,10 +100,12 @@ data.irt$theta_i[1:5]
 out.irt$theta_i[1:5]
 
 
-data.lnirt <- simdataLNIRT(N = 5000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(0.5, 20))
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(0.5, 20))
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0), tau = c(0,0), nu = rep(0.5, 20))
+
 out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 500, est.person = TRUE)
 out.lnrt <- MALNRT(data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
-out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 500, est.person = FALSE)
+out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 10000, est.person = FALSE)
 
 
 data.lnirt$beta - out.lnirt$beta
@@ -113,17 +115,30 @@ out.lnrt$delta
 out.lnirt$tau
 out.lnirt$delta
 
-hist(out.lnirt$nu.obs, breaks = 50)
+out.lnirt$beta - data.lnirt$beta
+
+hist(out.lnirt$nu.obs, breaks = 25, main = "N-fold observations", xlab = "E[(RT2 - E[RT2])*(Z2 - E[Z2])]")
+abline(v=mean(out.lnirt$nu.obs), col="red", lwd=2)
 mean(out.lnirt$nu.obs)
 
-hist(out.lnirt$nu.prop, breaks = 50)
+hist(out.lnirt$nu.prop, breaks = 25)
 mean(out.lnirt$nu.prop)
 
-ww1 <- out.lnirt$nu.obs/out.lnirt$nu.prop
-qq1 <- ww1 / sum(ww1)
-ind1 <- sample(1:5000, prob = qq1, replace = TRUE)
-draw.nu <- out.lnirt$nu.prop[ind1]
-hist(draw.nu)
+ind.prop <- sample(1:length(out.lnirt$nu.prop), size = 1000, replace = FALSE)
+nu.prop.N <- out.lnirt$nu.prop[ind.prop]
 
-cor(out.lnirt$Z[,1], data.lnirt$RTZ[,21])
+hist(nu.prop.N, breaks = 25, main = "Helmert proposal", xlab = "E[(t2 - E[t2])*(z2 - E[z2])]")
+abline(v=mean(nu.prop.N), col="red", lwd=2)
+mean(nu.prop.N)
+
+ww1 <- out.lnirt$nu.obs/nu.prop.N
+qq1 <- ww1 / sum(ww1)
+ind1 <- sample(1:1000, prob = qq1, replace = TRUE)
+draw.nu <- out.lnirt$nu.prop[ind1]
+hist(draw.nu, breaks = 25, main = "SIR with Helmert proposal", xlab = "nu")
+abline(v=mean(draw.nu), col="red", lwd=2)
+mean(draw.nu)
+
+cov(data.lnirt$RTZ[,1], data.lnirt$RTZ[,21])
+cor(data.lnirt$RTY[,1], data.lnirt$RTY[,21])
 

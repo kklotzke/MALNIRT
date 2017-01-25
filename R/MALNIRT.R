@@ -141,6 +141,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   # Fractional Bayes factor
   m0 <- m1 <- FBF <- matrix(NA, nrow = XG-1, ncol = 2)
 
+  # SAT
+  draw.nu2 <- numeric(0)
 
   ###### Run MCMC ######
   # For each chain
@@ -266,6 +268,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       # Helmert transformation
       errors <- Z + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
       tmat <- errors %*% t(hmat)
+      tmp.z2 <- tmat[, 2]
 
       # Between sum of squares
       mean.person <- apply(errors,1,mean)
@@ -353,6 +356,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       # Helmert transformation
       errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta) #+ matrix(zeta_i, nrow = N, ncol = K)
       tmat <- errors %*% t(hmat)
+      tmp.t2 <- tmat[, 2]
+      draw.nu2 <- c(draw.nu2, cov(tmp.t2, tmp.z2))
 
       # Between sum of squares
       mean.person <- apply(errors,1,mean)
@@ -516,8 +521,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   ### SAT ###
   nu.obs <- numeric(N)
   for (ii in 1:N) {
-    select.RT <- RT[-ii, 1]
-    select.Z <- Z[-ii, 1]
+    select.RT <- RT[-ii, 2]
+    select.Z <- Z[-ii, 2]
     nu.obs[ii] <- cov(select.RT, select.Z)
   }
 
@@ -536,7 +541,11 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
     nu.prop[dd] <- cov(draw.t1, draw.z1)
   }
 
+  for (kk in 1:K) {
+    cat(cor(RT[,kk], Z[,kk]), cor(RT[,kk], Y[,kk]))
+    cat("\n")
+  }
 
   return(list(beta = post.beta, lambda = post.lambda, theta = post.theta, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2,
-              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu.obs = nu.obs, nu.prop = nu.prop, Z = Z))
+              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu.obs = nu.obs, nu.prop = draw.nu2, Z = Z))
 }
