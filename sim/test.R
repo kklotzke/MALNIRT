@@ -100,22 +100,36 @@ data.irt$theta_i[1:5]
 out.irt$theta_i[1:5]
 
 
-data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.35), tau = c(0,0.7), nu = rep(0.5, 20))
-data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0), tau = c(0,0), nu = rep(0.7, 20))
+#data.lnirt <- simdataLNIRT(N = 1000, K = 10, delta = c(0,0.35), tau = c(0,0.7), nu = rep(0.6, 10))
+#data.lnirt <- simdataLNIRT(N = 1000, K = 10, delta = c(0,0), tau = c(0,0), nu = rep(0.5, 10))
 
-out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 500, est.person = TRUE)
-out.lnrt <- MALNRT(data.lnirt$RTY[,1:20], XG = 500, est.person = TRUE)
-out.lnirt <- MALNIRT(data.lnirt$RTY[,21:40], data.lnirt$RTY[,1:20], XG = 1000, est.person = FALSE)
+out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 1500, est.person = TRUE)
+
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.25,0), tau = c(0.35,0), nu = rep(0.55, 20))
+out.lnirt <- MALNIRT(data.lnirt$RTY[,1:20], data.lnirt$RTY[,21:40], XG = 500, est.person = FALSE)
+
+mean(out.lnirt$nu[complete.cases(out.lnirt$nu)])
+mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
+
+summary(data.lnirt$sig2k.lnrt - out.lnirt$sig2k[,1])
+summary(out.lnirt$beta - data.lnirt$beta)
+summary(out.lnirt$lambda - data.lnirt$lambda)
+
 
 
 data.lnirt$beta - out.lnirt$beta
 
 out.irt$tau
+
+data.lnirt2 <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.25), tau = c(0,0.35), nu = rep(0, 20))
+out.lnrt <- MALNRT(data.lnirt$RTY[,1:20], XG = 500, est.person = FALSE)
 out.lnrt$delta
+summary(data.lnirt2$sig2k.lnrt - out.lnrt$sig2k[,1])
+
+
 out.lnirt$tau
 out.lnirt$delta
 
-out.lnirt$beta - data.lnirt$beta
 
 hist(out.lnirt$nu.obs, breaks = 25, main = "N-fold observations", xlab = "E[(RT2 - E[RT2])*(Z2 - E[Z2])]")
 abline(v=mean(out.lnirt$nu.obs), col="red", lwd=2)
@@ -139,6 +153,6 @@ hist(draw.nu, breaks = 25, main = "SIR with Helmert proposal", xlab = "nu")
 abline(v=mean(draw.nu), col="red", lwd=2)
 mean(draw.nu)
 
-cov(data.lnirt$RTZ[,1], data.lnirt$RTZ[,21])
-cor(data.lnirt$RTY[,1], data.lnirt$RTY[,21])
+mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
+cor(out.lnirt$Z[,2], data.lnirt$RTZ[,22])
 

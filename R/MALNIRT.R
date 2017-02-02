@@ -87,6 +87,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   chains.list[[1]][[11]] <- matrix(0, ncol = K, nrow = N) # Z matrix
   chains.list[[1]][[12]] <- vector("list", G) # List to contain Z matrices per group
 
+  # SAT
+  chains.list[[1]][[13]] <- matrix(NA, nrow = XG, ncol = 1) # nu
+
   chains.list[[2]] <- chains.list[[1]]
   if (is.null(inits.1)) {
     inits.1 <- vector("list", 10)
@@ -135,6 +138,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
     chains.list[[2]][[12]][[gg]] <- matrix(0, ncol = K, nrow = nrow(Y.group[[gg]]))
   }
 
+  chains.list[[1]][[13]][1,1] <- 0.5
+  chains.list[[2]][[13]][1,1] <- -0.5
+
   # Create helmert matrix
   hmat <- helmert(K)
 
@@ -164,6 +170,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       sig2.min1 <- chain[[8]][ii-1,,1]
       tau.min1 <- chain[[9]][ii-1,,]
       delta.min1 <- chain[[10]][ii-1,,]
+      nu.min1 <- chain[[13]][ii-1, 1]
 
       # Generalize sigma^2 (fixed to 1) and tau
       ones <- rep(1, K)
@@ -195,37 +202,74 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       ##### Responses #####
 
       ### Sample latent response variable ###
+Z <- Z.group[[1]] <- data.lnirt$ZRT
 
-      # See Fox et al. (2016) Equation 14 and 15
-      Sjc <- matrix(tau.min1[1] / (1 + (K - 1) * tau.min1[1]), ncol = 1, nrow = K - 1)
-      var.Z <- (1 + K * tau.min1[1])/(1 + (K - 1) * tau.min1[1])
-      theta1 <- matrix(mean(theta.min1), ncol = K - 1, nrow = N)
+      # nu <- 0.6
+      # I <- diag(K)
+      # J <- matrix(1, K, K)
+      # A11 <- I + tau.min1[1]
+      # A22 <- diag(sig2k.min1) + delta.min1[1]
+      # A11.inv <- I - J/(1/tau.min1[1] + K)  # solve(A11)
+      # a <- diag(1/sig2k.min1)
+      # A22.inv <- a - (a %*% J %*% a) / (1/delta.min1[1] + sum(1/sig2k.min1)) # solve(A22)
+      #
+      # mu.z <- theta.min1[1] - mean(beta.min1)
+      # mu.RT <- mean(lambda.min1) - zeta.min1[1]
+      # Sigma.zRT <- A11 - nu^2 * A22.inv
+      #
+      # for (i in 1:N) {
+      #   mu.zRT <- as.numeric(mu.z + nu * A22.inv %*% (RT[i, ] - mu.RT))
+      #   tmp <- mvtnorm::rmvnorm(1, mean = mu.zRT, sigma = Sigma.zRT)
+      #   lower <- upper <- numeric(K)
+      #   for (kk in 1:K) {
+      #     if (Y[i, kk] == 0) {
+      #       lower[kk] <- -Inf
+      #       upper[kk] <- 0
+      #     }
+      #     else if (Y[i, kk] == 1) {
+      #       lower[kk] <- 0
+      #       upper[kk] <- Inf
+      #     }
+      #   }
+      #   #browser()
+      #
+      #   Z[i, ] <- tmvtnorm::rtmvnorm(1, mean = mu.zRT, sigma = Sigma.zRT, lower = lower, upper = upper, algorithm = "gibbs")
+      #
+      #   #  Z[Y[i, kk]==0, kk] <- qnorm(runif(1, 0, pnorm(0, tmp, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y[, kk] == 0]
+      #   #  Z[Y[i, kk]==1, kk] <- qnorm(runif(1, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y[, kk] == 1]
+      # }
 
-      for (kk in 1:K){
-        beta1 <- beta.min1[-kk]
-        Z1 <- Z[, -kk] # Latent responses to all but the current item
-        mu.Z <- (mean(theta.min1) - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
-        Z[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y[, kk] == 0]
-        Z[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y[, kk] == 1]
-      }
 
-      for (gg in 1:G) {
-        N.g <- nrow(Y.group[[gg]])
+      # # See Fox et al. (2016) Equation 14 and 15
+      # Sjc <- matrix(tau.min1[1] / (1 + (K - 1) * tau.min1[1]), ncol = 1, nrow = K - 1)
+      # var.Z <- (1 + K * tau.min1[1])/(1 + (K - 1) * tau.min1[1])
+      # theta1 <- matrix(mean(theta.min1), ncol = K - 1, nrow = N)
+      #
+      # for (kk in 1:K){
+      #   beta1 <- beta.min1[-kk]
+      #   Z1 <- Z[, -kk] # Latent responses to all but the current item
+      #   mu.Z <- (mean(theta.min1) - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
+      #   Z[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y[, kk] == 0]
+      #   Z[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y[, kk] == 1]
+      # }
+      #
+      # for (gg in 1:G) {
+      #   N.g <- nrow(Y.group[[gg]])
+      #
+      #   Sjc <- matrix(tau.min1[gg+1] / (1 + (K - 1) * tau.min1[gg+1]), ncol = 1, nrow = K - 1)
+      #   var.Z <- (1 + K * tau.min1[gg+1])/(1 + (K - 1) * tau.min1[gg+1])
+      #   theta1 <- matrix(theta.min1[gg], ncol = K - 1, nrow = N.g)
+      #
+      #   for (kk in 1:K){
+      #     beta1 <- beta.min1[-kk]
+      #     Z1 <- Z.group[[gg]][, -kk] # Latent responses to all but the current item
+      #     mu.Z <- (theta.min1[gg] - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
+      #     Z.group[[gg]][Y.group[[gg]][, kk]==0, kk] <- qnorm(runif(N.g, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 0]
+      #     Z.group[[gg]][Y.group[[gg]][, kk]==1, kk] <- qnorm(runif(N.g, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 1]
+      #   }
+      # }
 
-        Sjc <- matrix(tau.min1[gg+1] / (1 + (K - 1) * tau.min1[gg+1]), ncol = 1, nrow = K - 1)
-        var.Z <- (1 + K * tau.min1[gg+1])/(1 + (K - 1) * tau.min1[gg+1])
-        theta1 <- matrix(theta.min1[gg], ncol = K - 1, nrow = N.g)
-
-        for (kk in 1:K){
-          beta1 <- beta.min1[-kk]
-          Z1 <- Z.group[[gg]][, -kk] # Latent responses to all but the current item
-          mu.Z <- (theta.min1[gg] - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
-          Z.group[[gg]][Y.group[[gg]][, kk]==0, kk] <- qnorm(runif(N.g, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 0]
-          Z.group[[gg]][Y.group[[gg]][, kk]==1, kk] <- qnorm(runif(N.g, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 1]
-        }
-      }
-
-      ### Sample speed parameters group means ###
+      ### Sample ability parameters group means ###
 
       # Hyper parameters
       # flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
@@ -251,13 +295,14 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
       ### Sample item difficulty paramaters ###
 
+      Z1 <- data.lnirt$RTZ[,1:K]
       # Hyper parameters
       SS <- b.beta + sum((beta.min1 - mean(beta.min1))^2) + (K*n0.beta*mean(beta.min1))/(2*(K + n0.beta))
       var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
       mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.min1))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
       var.beta <- 1/(N*(var.gen.Z[1]) + 1/var0.beta)
-      mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z)))*(var.gen.Z[1]) + mu0.beta/var0.beta)
+      mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z1)))*(var.gen.Z[1]) + mu0.beta/var0.beta)
 
       # Draw K time intensity parameters
       chain[[1]][ii, ] <- beta <- rnorm(K, mu.beta, sqrt(var.beta))
@@ -266,7 +311,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       ### Sample covariance parameter
 
       # Helmert transformation
-      errors <- Z + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
+      errors <- Z1 + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
       tmat <- errors %*% t(hmat)
       tmp.z2 <- tmat[, 2]
 
@@ -283,7 +328,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         N.g <- nrow(Z.group[[gg]])
 
         # Helmert transformation
-        errors <- Z.group[[gg]] + matrix(beta, nrow = N.g, ncol = K, byrow = TRUE) + theta[gg]
+        errors <- Z1 + matrix(beta, nrow = N.g, ncol = K, byrow = TRUE) + theta[gg] #Z.group[[gg]]
         tmat <- errors %*% t(hmat)
 
         # Between sum of squares
@@ -349,6 +394,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
       # Draw K individual measurement error variances
       chain[[7]][ii,,1] <- sig2k <- 1 / rgamma(K, (N+a.sig2)/2, (SSwk+b.sig2)/2)
+      #chain[[7]][ii,,1] <- sig2k <- 1 / rgamma(K, (N)/2, (SSwk)/2)
+      this.sig2k <- sig2k #<- data.lnirt$sig2k.lnrt
 
 
       ### Sample covariance parameter
@@ -395,6 +442,72 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         chain[[10]][ii,,gg+1] <- delta <- 1 / rgamma(1, N.g/2, SSb/2) - sig2/K
       }
 
+      ##### Joint-model #####
+
+      ### Sample covariance responses-response times ###
+
+      # Hyper parameters
+      # flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
+      var0.b <- 10^10
+      mu0.b <- 0
+
+      sig2k <- this.sig2k
+     # print(sig2k)
+
+      I <- diag(K)
+      J <- matrix(1, K, K)
+      A11 <- I + tau # data.lnirt$Sigma.irt #
+      A22 <- diag(sig2k) + delta #data.lnirt$Sigma.lnrt # diag(sig2k) + delta[1] # diag(data.lnirt$sig2k.lnrt) + delta
+      A11.inv <- I - J/(1/tau + K)  # solve(A11)
+      a <- diag(1/sig2k)
+      A22.inv <- a - (a %*% J %*% a) / (1/delta + sum(1/sig2k)) # solve(A22)
+#A11.inv <- solve(A11)
+#A22.inv <- solve(A22)
+
+      mu.z <- mean(Z) #theta[1] - mean(beta)#
+      mu.RT <- mean(RT) #mean(lambda) - zeta[1] #
+      #X <- A22.inv %*% (RT - mu.RT) # N x K
+
+      #nu.min1 <- 0.6
+      Sigma.zRT <- A11 - nu.min1^2 * A22.inv
+      #Sigma.zRT <- A11 - (nu.min1*I) %*% A22.inv %*% (nu.min1*I)
+      #Sigma.zRT <- data.lnirt$Sigma.irt - (data.lnirt$Sigma.nu) %*% solve(data.lnirt$Sigma.lnrt) %*% (data.lnirt$Sigma.nu)
+
+      Sigma.zRT.inv <- solve(Sigma.zRT)
+#browser()
+
+      tmp1 <- tmp2 <- 0
+      for (i in 1:N) {
+        xi <- cbind(rep(1,K), A22.inv %*% (RT[i, ] - mu.RT)) #mu.RT))
+        #xi <- cbind(rep(1,K), solve(data.lnirt$Sigma.lnrt) %*% (RT[i, ] - mu.RT)) #mu.RT))
+        tmp1 <- tmp1 + t(xi) %*%  Sigma.zRT.inv %*% xi
+        tmp2 <- tmp2 + t(xi) %*%  Sigma.zRT.inv %*% Z[i, ]
+      }
+
+      Sigma.b <- solve(1/var0.b + tmp1)
+      mu.b <- Sigma.b %*% (mu0.b/var0.b + tmp2)
+#print(mu.b)
+      #Sigma.b[1,1] <- 0.01
+      #mu.b[1] <- mu.z #mean(Z)
+
+      #Sigma.nu <- solve(N * Sigma.zRT.inv + 1 / var0.nu)
+
+      #browser()
+      #print(eigen(Sigma.zRT)$values)
+      #print(eigen(Sigma.zRT.inv)$values)
+      #print(eigen(Sigma.nu)$values)
+      #mu.nu <- Sigma.nu %*% (N * Sigma.zRT.inv %*% ((colMeans(Z) - mu.z) / (Sigma.zRT.inv %*% (colMeans(RT) - mu.RT))) + mu0.nu/var0.nu)
+
+#browser()
+      # Draw nu
+      b <- mvtnorm::rmvnorm(1, mean=mu.b, sigma=Sigma.b)
+      #nu <- rnorm(1, mu.nu, sqrt(Sigma.nu))
+      #nu <- mean(nu)
+      chain[[13]][ii, 1] <- b[1, 2]
+      #print(b)
+      #cat(mu.z, "|", b[1], "\n")
+
+
       if ((!silent) && (ii%%100 == 0))
         cat("Iteration ", ii, " ", "\n")
       flush.console()
@@ -430,6 +543,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   for (gg in 1:G) {
     post.Z.group[[gg]] <- (chain.1[[12]][[gg]] + chain.2[[12]][[gg]]) / 2
   }
+  post.nu <- (chain.1[[13]][XG.burnin:XG, 1] + chain.2[[13]][XG.burnin:XG, 1]) / 2
 
 
   if(est.person)
@@ -541,11 +655,6 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
     nu.prop[dd] <- cov(draw.t1, draw.z1)
   }
 
-  for (kk in 1:K) {
-    cat(cor(RT[,kk], Z[,kk]), cor(RT[,kk], Y[,kk]))
-    cat("\n")
-  }
-
   return(list(beta = post.beta, lambda = post.lambda, theta = post.theta, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2,
-              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu.obs = nu.obs, nu.prop = draw.nu2, Z = Z))
+              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu = post.nu, nu.obs = nu.obs, nu.prop = draw.nu2, Z = Z))
 }
