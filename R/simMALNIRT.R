@@ -104,12 +104,26 @@ simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, th
   # Sample data
   RTZ <- matrix(0, ncol=2*K, nrow=N) # first K columns: RTs, next K columns: Zs
   for(ii in 1:N) {
-    means.lnrt <- lambda - zeta[ii]
+    #mu <- c(theta[ii], zeta[ii])
+    #theta_k <- zeta_k <- numeric(K)
+    #for(kk in 1:K) {
+    #  sig <- matrix(c(0, nu[kk], nu[kk], 0), nrow = 2)
+    #  tz <- mvtnorm::rmvnorm(1, mean=mu, sigma=sig)
+    #  theta_k <- theta[ii]#tz[1]
+    #  zeta_k <- zeta[ii]#tz[2]
+    #}
+
+    #means.irt <- theta_k - beta
+    #means.lnrt <- lambda - zeta_k
     means.irt <- theta[ii] - beta
+    means.lnrt <- lambda - zeta[ii]
     #means <- c(means.lnrt, means.irt)
     means <- c(means.irt, means.lnrt)
 
-    RTZ[ii,]	<- mvtnorm::rmvnorm(1, mean=means, sigma=Sigma, method="chol") #nr replications
+    #Z_i <- mvtnorm::rmvnorm(1, mean=means.irt, sigma=Sigma.irt)
+    #RT_i <- mvtnorm::rmvnorm(1, mean=means.lnrt, sigma=Sigma.lnrt)
+    #RTZ[ii, ] <- cbind(Z_i, RT_i)
+    RTZ[ii,]	<- mvtnorm::rmvnorm(1, mean=means, sigma=Sigma) #nr replications
     #RTZ[ii,]	<- mvrnorm(1, mu=as.numeric(means), Sigma=Sigma, empirical = TRUE) #nr replications
     #RT[ii,]	<- mvrnorm(1,mu=as.vector(lambda - zeta[ii]),Sigma=Sigma, empirical=FALSE) #nr replications
   }

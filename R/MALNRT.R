@@ -185,8 +185,8 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       # Within sum of squares
       errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta)
       mean.person <- apply(errors,1,mean)
-      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / K
-      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
+      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / (K-1)
+      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum) * (K / (K-1))
 
       # Draw total measurement error variance
       #chain[[4]][ii,,1] <- sig2 <- (SSw/(K-1))/rgamma(1,shape=N/2,rate=1/2)
@@ -225,8 +225,8 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       tmat <- errors %*% t(hmat)
       mean.person <- apply(errors,1,mean)
       SSb <- sum((mean.person - mean(errors))^2)
-      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / K
-      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
+      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / (K-1)
+      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum) * (K / (K-1))
 
       m0[ii-1, cc] <- gmp::asNumeric((sig2/K)^((1-N)/2) * exp(((1-N)/(2*N)) * (sum(SSwk[2:K]/sig2k[2:K]) + SSb/(sig2/K))))
       m1[ii-1, cc] <- gmp::asNumeric(exp(-(1/2) * sum(SSwk[2:K]/sig2k[2:K])) * (gamma(N/2) * (SSb/2)^(-(N/2))) / (gamma(1/2) * (SSb/(2*N))^(-(1/2))))
