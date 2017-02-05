@@ -1,13 +1,19 @@
 #' @export
 helmert <- function(p) {
-  H <- matrix(0, p, p)
-  diag(H) <- -(0:(p-1)) * (-((0:(p-1))*((0:(p-1))+1))^(-0.5))
-  for (i in 2:p){
-    H[i,1:(i-1)]<- -((i-1)*(i))^(-0.5)
-  }
-  H[1,]<-1/sqrt(p)
+  helmert <- matrix(0,ncol=p,nrow=p)
 
-  return(H)
+  diag(helmert)[2:p] <- -(1:(p-1))
+  for(ii in 1:p){
+
+    if(ii == 1){
+      helmert[ii,1:p] <- rep(1,p)/sqrt(p)
+    }
+    else{
+      helmert[ii,ii] <- helmert[ii,ii]/sqrt((ii-1)*ii)
+      helmert[ii,1:(ii-1)] <- 1/sqrt((ii-1)*ii)
+    }
+  }
+  return(helmert)
 }
 
 #' Sample person ability parameter

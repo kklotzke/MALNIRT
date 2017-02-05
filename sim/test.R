@@ -105,15 +105,19 @@ out.irt$theta_i[1:5]
 
 out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 1500, est.person = TRUE)
 
-data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.25,0), tau = c(0.35,0), nu = rep(0.55, 20))
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.35,0), tau = c(0.10,0), nu = rep(0.55, 20))
 out.lnirt <- MALNIRT(data.lnirt$RTY[,1:20], data.lnirt$RTY[,21:40], XG = 500, est.person = FALSE)
 
 mean(out.lnirt$nu[complete.cases(out.lnirt$nu)])
-mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
+#mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
 
+data.lnrt$sig2/20 - out.lnirt$sig2
 summary(data.lnirt$sig2k.lnrt - out.lnirt$sig2k[,1])
 summary(out.lnirt$beta - data.lnirt$beta)
 summary(out.lnirt$lambda - data.lnirt$lambda)
+
+out.lnirt$tau
+out.lnirt$delta
 
 
 
@@ -122,14 +126,17 @@ data.lnirt$beta - out.lnirt$beta
 out.irt$tau
 
 data.lnirt2 <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.25), tau = c(0,0.35), nu = rep(0, 20))
-data.lnrt <- simdataLNRT(1000, 20, c(0,0))
+
+data.lnrt <- simdataLNRT(1000, 10, c(0,0.2))
 out.lnrt <- MALNRT(data.lnrt$RT, XG = 500, est.person = FALSE)
-out.lnrt$delta
 summary(data.lnrt$sig2k - out.lnrt$sig2k[,1])
+summary(data.lnrt$sig2k - out.lnrt$sig2k[,2])
+data.lnrt$sig2/10 - out.lnrt$sig2
+out.lnrt$delta
 
+cor(data.lnrt$sig2k, out.lnrt$sig2k[,1])
+cor(data.lnrt$sig2k, out.lnrt$sig2k[,2])
 
-out.lnirt$tau
-out.lnirt$delta
 
 
 hist(out.lnirt$nu.obs, breaks = 25, main = "N-fold observations", xlab = "E[(RT2 - E[RT2])*(Z2 - E[Z2])]")

@@ -184,17 +184,50 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
       # Within sum of squares
       errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta)
+      tmat <- errors %*% t(hmat)
       mean.person <- apply(errors,1,mean)
-      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum)) / (K-1)
-      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum) * (K / (K-1))
+      mean.item <- apply(errors,2,mean)
+      #SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum))# / K#(K-1)
+      SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum) #* (K / (K-1))
 
+      #SSw <- sum(apply((errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE))*(errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE)),1,sum))# / K#(K-1)
+      #SSw <- sum((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
+      #SSwk <- colSums((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
+      #SSwk <- apply((errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE))*(errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE)),2,sum)
+      SSwk2 <- numeric(K-1)
+      #browser()
+
+      for (kk in 2:K) {
+        SSwk2[kk-1] <- sum((tmat[,kk] - mean(tmat[,kk]))^2)
+      }
+
+      #test <- 0
+
+      SSwk <- numeric(K-1)
+      for (kk in 2:K) {
+        for (i in 1:N) {
+          #a <- mean(errors[i,-1])
+          a <- mean(tmat[i,])
+          SSwk[kk-1] <- SSwk[kk-1] + (tmat[i, kk] - a)^2
+          #SSwk[kk-1] <- SSwk[kk-1] + (errors[i, kk] - a)^2
+        }
+      }
+      #cat(SSwk2[9:12], "|", test, "\n")
+#browser()
+      #print(all.equal(SSwk, SSwk2))
+      #SSwk <- c(data.lnrt$sig2k[1], SSwk2)
+      #SSw <- sum(SSwk)
+
+#print(SSwk2)
       # Draw total measurement error variance
       #chain[[4]][ii,,1] <- sig2 <- (SSw/(K-1))/rgamma(1,shape=N/2,rate=1/2)
-      chain[[4]][ii,,1] <- sig2 <- 1 / rgamma(1, (N+a.sig2)/2, (SSw+b.sig2)/2)
+      #chain[[4]][ii,,1] <- sig2 <- ((1 / rgamma(1, a.sig2 + N/2, b.sig2 + SSw/2) ) / K )# - delta.min1
 
       # Draw K individual measurement error variances
-      chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, (N+a.sig2)/2, (SSwk+b.sig2)/2)
-
+      #chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)# - delta.min1
+      sig2k <- 1 / rgamma(K-1, a.sig2 + N/2, b.sig2 + SSwk/2)
+      chain[[3]][ii,,1] <- sig2k <- c(data.lnrt$sig2k[1], sig2k)
+      chain[[4]][ii,,1] <- sig2 <- mean(sig2k)
 
       ### Sample covariance parameter
 
@@ -207,7 +240,9 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       mean.person <- apply(errors,1,mean)
       #print(cor(mean.person, zeta_i))
       #SSb1 <- sum((tmat[, 1] - sqrt(K)*(mean(errors)))^2) / K
-      SSb <- sum((mean.person - mean(errors))^2)
+      #SSb <- sum((mean.person - mean(errors))^2)
+      SSb <- sum((tmat[, 1] - sqrt(K)*(mean(errors)))^2) / K
+
       #cat(SSb, ",", SSb1, "\n")
       #SSb <- sum((mean.person - (mean(lambda) - mean(zeta_i)))^2)
       #mean.RT <- apply(RT,1,mean)
@@ -217,6 +252,7 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       # Draw covariance parameter
       #chain[[5]][ii,,1] <- delta <- (SSb)/rgamma(1,shape=N/2,rate=1/2) - sig2/K
       chain[[5]][ii,,1] <- delta <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
+#cat(SSb, "|", SSw, "\n")
 
       ## Fractional Bayes Factor
       # delta != 0 vs delta = 0
@@ -249,8 +285,8 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
         # Within sum of squares
         mean.person <- apply(errors,1,mean)
-        SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N.g))*(errors - matrix(mean.person,ncol=K,nrow=N.g)),1,sum)) / K
-        SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N.g))*(errors - matrix(mean.person,ncol=K,nrow=N.g)),2,sum)
+        SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N.g))*(errors - matrix(mean.person,ncol=K,nrow=N.g)),1,sum)) / (K-1)
+        SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N.g))*(errors - matrix(mean.person,ncol=K,nrow=N.g)),2,sum) * K /(K-1)
 
         # Draw total measurement error variance
         chain[[4]][ii,,gg+1] <- sig2 <- 1 / rgamma(1, (N.g+a.sig2)/2, (SSw+b.sig2)/2)
