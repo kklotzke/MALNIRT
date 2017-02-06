@@ -127,7 +127,7 @@ out.irt$tau
 
 data.lnirt2 <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.25), tau = c(0,0.35), nu = rep(0, 20))
 
-data.lnrt <- simdataLNRT(1000, 10, c(0,0.2))
+data.lnrt <- simdataLNRT(1000, 10, c(0,0.6))
 out.lnrt <- MALNRT(data.lnrt$RT, XG = 500, est.person = FALSE)
 summary(data.lnrt$sig2k - out.lnrt$sig2k[,1])
 summary(data.lnrt$sig2k - out.lnrt$sig2k[,2])

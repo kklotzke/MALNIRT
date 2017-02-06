@@ -143,6 +143,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
   # Create helmert matrix
   hmat <- helmert(K)
+  tmp1 <- hmat[K,1]
+  tmp2 <- hmat[K,K]
+  hmat2 <- matrix(tmp1, nrow = K, ncol = K)
+  diag(hmat2) <- rep(tmp2, K)
 
   # Fractional Bayes factor
   m0 <- m1 <- FBF <- matrix(NA, nrow = XG-1, ncol = 2)
@@ -385,17 +389,27 @@ Z <- Z.group[[1]] <- data.lnirt$ZRT
 
       # Within sum of squares
       errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta)
+      tmat <- errors %*% t(hmat2)
+
       mean.person <- apply(errors,1,mean)
       mean.item <- apply(errors,2,mean)
       #SSw <- sum((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
-      SSwk <- colSums((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
+      #SSwk <- colSums((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
+      SSwk <- numeric(K)
+      for (kk in 1:K) {
+        for (i in 1:N) {
+          a <- mean(tmat[i,])
+          SSwk[kk] <- SSwk[kk] + (tmat[i, kk] - a)^2
+        }
+      }
+
       SSw <- sum(SSwk)
 
       # Draw total measurement error variance
-      chain[[8]][ii,,1] <- sig2 <- (( 1 / rgamma(1, a.sig2 + N/2, b.sig2 + SSw/2) ) / K) - delta.min1[1]
+      chain[[8]][ii,,1] <- sig2 <- (( 1 / rgamma(1, a.sig2 + N/2, b.sig2 + SSw/2) ) / K)
 
       # Draw K individual measurement error variances
-      chain[[7]][ii,,1] <- sig2k <- (1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)) - delta.min1[1]
+      chain[[7]][ii,,1] <- sig2k <- (1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2))
       #chain[[7]][ii,,1] <- sig2k <- 1 / rgamma(K, (N)/2, (SSwk)/2)
       this.sig2k <- sig2k #<- data.lnirt$sig2k.lnrt
 
@@ -416,11 +430,10 @@ Z <- Z.group[[1]] <- data.lnirt$ZRT
       #SSb <- sum((mean.person - (mean(lambda) - mean(zeta_i)))^2)
 
       # Draw covariance parameter
-      #chain[[10]][ii,,1] <- delta <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
-      #browser()
       chain[[10]][ii,,1] <- delta <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
-      tmp <- (1 / rgamma(1, N/2, SSb/2))
-      print((tmp - delta) * K)
+      #browser()
+      #chain[[10]][ii,,1] <- delta <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
+      #tmp <- (1 / rgamma(1, N/2, SSb/2))
       #chain[[8]][ii,,1] <- sig2 <- (tmp - delta) * K
       #print(sig2)
 
@@ -439,14 +452,14 @@ Z <- Z.group[[1]] <- data.lnirt$ZRT
         # Within sum of squares
         mean.person <- apply(errors,1,mean)
         mean.item <- apply(errors,2,mean)
-        SSw <- sum((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
-        SSwk <- colSums((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
+        SSw <- sum((errors - matrix(mean.person, ncol = K, nrow = N, byrow = TRUE))^2)
+        SSwk <- colSums((errors - matrix(mean.person, ncol = K, nrow = N, byrow = TRUE))^2)
 
         # Draw total measurement error variance
-        chain[[8]][ii,,gg+1] <- sig2 <- (( 1 / rgamma(1, a.sig2 + N/2, b.sig2 + SSw/2) ) / K) - delta.min1[gg+1]
+        chain[[8]][ii,,gg+1] <- sig2 <- (( 1 / rgamma(1, a.sig2 + N/2, b.sig2 + SSw/2) ) / K)
 
         # Draw K individual measurement error variances
-        chain[[7]][ii,,gg+1] <- sig2k <- (1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)) - delta.min1[gg+1]
+        chain[[7]][ii,,gg+1] <- sig2k <- (1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2))
 
         # Draw covariance parameter
         chain[[10]][ii,,gg+1] <- delta <- 1 / rgamma(1, N.g/2, SSb/2) - sig2/K

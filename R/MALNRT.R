@@ -94,6 +94,10 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
   # Create helmert matrix
   hmat <- helmert(K)
+  tmp1 <- hmat[K,1]
+  tmp2 <- hmat[K,K]
+  hmat2 <- matrix(tmp1, nrow = K, ncol = K)
+  diag(hmat2) <- rep(tmp2, K)
 
   # Fractional Bayes factor
   m0 <- m1 <- FBF <- matrix(NA, nrow = XG-1, ncol = 2)
@@ -184,7 +188,7 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
       # Within sum of squares
       errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta)
-      tmat <- errors %*% t(hmat)
+      tmat <- errors %*% t(hmat2)
       mean.person <- apply(errors,1,mean)
       mean.item <- apply(errors,2,mean)
       #SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum))# / K#(K-1)
@@ -194,24 +198,24 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       #SSw <- sum((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
       #SSwk <- colSums((errors - matrix(mean.item, ncol = K, nrow = N, byrow = TRUE))^2)
       #SSwk <- apply((errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE))*(errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE)),2,sum)
-      SSwk2 <- numeric(K-1)
+      SSwk <- numeric(K)
       #browser()
 
-      for (kk in 2:K) {
-        SSwk2[kk-1] <- sum((tmat[,kk] - mean(tmat[,kk]))^2)
-      }
+      #or (kk in 1:K) {
+      #  SSwk[kk] <- sum((tmat[,kk] - mean(tmat[,kk]))^2)
+      #}
 
       #test <- 0
 
-      SSwk <- numeric(K-1)
-      for (kk in 2:K) {
-        for (i in 1:N) {
-          #a <- mean(errors[i,-1])
-          a <- mean(tmat[i,])
-          SSwk[kk-1] <- SSwk[kk-1] + (tmat[i, kk] - a)^2
-          #SSwk[kk-1] <- SSwk[kk-1] + (errors[i, kk] - a)^2
-        }
-      }
+      # SSwk <- numeric(K-1)
+       for (kk in 1:K) {
+         for (i in 1:N) {
+      #     #a <- mean(errors[i,-1])
+           a <- mean(tmat[i,])
+           SSwk[kk] <- SSwk[kk] + (tmat[i, kk] - a)^2
+      #     #SSwk[kk-1] <- SSwk[kk-1] + (errors[i, kk] - a)^2
+         }
+       }
       #cat(SSwk2[9:12], "|", test, "\n")
 #browser()
       #print(all.equal(SSwk, SSwk2))
@@ -225,8 +229,8 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
       # Draw K individual measurement error variances
       #chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)# - delta.min1
-      sig2k <- 1 / rgamma(K-1, a.sig2 + N/2, b.sig2 + SSwk/2)
-      chain[[3]][ii,,1] <- sig2k <- c(data.lnrt$sig2k[1], sig2k)
+      sig2k <- 1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)
+      chain[[3]][ii,,1] <- sig2k #<- c(data.lnrt$sig2k[1], sig2k)
       chain[[4]][ii,,1] <- sig2 <- mean(sig2k)
 
       ### Sample covariance parameter
