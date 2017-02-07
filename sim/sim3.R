@@ -1,6 +1,6 @@
 
-nu.pred <- nu.obs <- de <- ta <- sig <- numeric(10)
-for (ii in 1:10)
+nu.pred <- nu.obs <- de <- ta <- sig <- numeric(20)
+for (ii in 1:20)
 {
   print(ii)
   data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.35,0), tau = c(0.45,0), nu = rep(-0.25, 20))
@@ -10,7 +10,7 @@ for (ii in 1:10)
   nu.obs[ii] <- mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
   de[ii] <- out$delta[1]
   ta[ii] <- out$tau[1]
-  sig[ii] <- out$sig2[1]
+  sig[ii] <- out$sig2[1] - mean(data.lnirt$sig2k.lnrt)
 }
 
 mean(nu.pred)

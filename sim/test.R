@@ -105,17 +105,27 @@ out.irt$theta_i[1:5]
 
 out.irt <- MAIRT(data.lnirt$RTY[,21:40], XG = 1500, est.person = TRUE)
 
-data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.35,0), tau = c(0.10,0), nu = rep(0.55, 20))
+data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.35,0), tau = c(0.10,0), nu = rep(-0.25, 20))
 out.lnirt <- MALNIRT(data.lnirt$RTY[,1:20], data.lnirt$RTY[,21:40], XG = 500, est.person = FALSE)
 
-mean(out.lnirt$nu[complete.cases(out.lnirt$nu)])
+mean(out.lnirt$nu)
+out.lnirt$tau
+out.lnirt$delta
+
 mean(data.lnirt$sig2k.lnrt) - out.lnirt$sig2
 summary(data.lnirt$sig2k.lnrt - out.lnirt$sig2k[,1])
+
 summary(out.lnirt$beta - data.lnirt$beta)
 summary(out.lnirt$lambda - data.lnirt$lambda)
 
-out.lnirt$tau
-out.lnirt$delta
+
+mean(diag(cov(out.lnirt$Z.RT, data.lnirt$RTY[,21:40])))
+mean(diag(cov(data.lnirt$ZRT, data.lnirt$RTY[,21:40])))
+
+mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
+
+summary(out.lnirt$Z - data.lnirt$RTZ[,1:20])
+
 
 
 
