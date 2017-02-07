@@ -191,7 +191,7 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       tmat <- errors %*% t(hmat2)
       mean.person <- apply(errors,1,mean)
       mean.item <- apply(errors,2,mean)
-      #SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum))# / K#(K-1)
+      SSw <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum))# / K#(K-1)
       SSwk <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum) #* (K / (K-1))
 
       #SSw <- sum(apply((errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE))*(errors - matrix(mean.item,ncol=K,nrow=N, byrow=TRUE)),1,sum))# / K#(K-1)
@@ -224,14 +224,14 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
 
 #print(SSwk2)
       # Draw total measurement error variance
-      #chain[[4]][ii,,1] <- sig2 <- (SSw/(K-1))/rgamma(1,shape=N/2,rate=1/2)
-      #chain[[4]][ii,,1] <- sig2 <- ((1 / rgamma(1, a.sig2 + N/2, b.sig2 + SSw/2) ) / K )# - delta.min1
+      #chain[[4]][ii,,1] <- sig2 <- (SSw/(K-1))/rgamma(1,shape=(N*K)/2,rate=1/2)
+      chain[[4]][ii,,1] <- sig2 <- mean(((1 / rgamma(1000, a.sig2 + (N*K)/2, b.sig2 + SSw/2) )))# - delta.min1
 
       # Draw K individual measurement error variances
       #chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)# - delta.min1
       sig2k <- 1 / rgamma(K, a.sig2 + N/2, b.sig2 + SSwk/2)
       chain[[3]][ii,,1] <- sig2k #<- c(data.lnrt$sig2k[1], sig2k)
-      chain[[4]][ii,,1] <- sig2 <- mean(sig2k)
+      #chain[[4]][ii,,1] <- sig2 <- mean(sig2k)
 
       ### Sample covariance parameter
 
