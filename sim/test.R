@@ -109,9 +109,7 @@ data.lnirt <- simdataLNIRT(N = 1000, K = 20, delta = c(0.35,0), tau = c(0.10,0),
 out.lnirt <- MALNIRT(data.lnirt$RTY[,1:20], data.lnirt$RTY[,21:40], XG = 500, est.person = FALSE)
 
 mean(out.lnirt$nu[complete.cases(out.lnirt$nu)])
-#mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
-
-data.lnrt$sig2/20 - out.lnirt$sig2
+mean(data.lnirt$sig2k.lnrt) - out.lnirt$sig2
 summary(data.lnirt$sig2k.lnrt - out.lnirt$sig2k[,1])
 summary(out.lnirt$beta - data.lnirt$beta)
 summary(out.lnirt$lambda - data.lnirt$lambda)
@@ -129,8 +127,8 @@ data.lnirt2 <- simdataLNIRT(N = 1000, K = 20, delta = c(0,0.25), tau = c(0,0.35)
 
 data.lnrt <- simdataLNRT(1000, 10, c(0,0.6))
 out.lnrt <- MALNRT(data.lnrt$RT, XG = 500, est.person = FALSE)
-#summary(data.lnrt$sig2k - out.lnrt$sig2k[,1])
-#summary(data.lnrt$sig2k - out.lnrt$sig2k[,2])
+summary(data.lnrt$sig2k - out.lnrt$sig2k[,1])
+summary(data.lnrt$sig2k - out.lnrt$sig2k[,2])
 data.lnrt$sig2/10 - out.lnrt$sig2
 out.lnrt$delta
 
