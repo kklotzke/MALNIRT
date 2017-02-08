@@ -303,8 +303,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       Z.RT <- matrix(NA, nrow = N, ncol = K)
       for (i in 1:N)
       {
-        #Z.RT[i, ] <- mu.z + nu.min1 * A22.inv %*% (RT[i, ] - mu.RT)
-        Z.RT[i, ] <- mu.z - 0.25 * A22.inv %*% (RT[i, ] - mu.RT)
+        Z.RT[i, ] <- mu.z + nu.min1 * A22.inv %*% (RT[i, ] - mu.RT)
+        #Z.RT[i, ] <- mu.z - 0.25 * A22.inv %*% (RT[i, ] - mu.RT)
       }
       Z.RT.group[[1]] <- Z.RT
 
@@ -442,7 +442,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta) #+ matrix(zeta_i, nrow = N, ncol = K)
       tmat <- errors %*% t(hmat)
       tmp.rt <- errors %*% t(hmat2)
-      print(mean(diag(cov(tmp.zh, tmp.rt))))
+      #print(mean(diag(cov(tmp.zh, tmp.rt))))
 
       # Between sum of squares
       mean.person <- apply(errors,1,mean)
