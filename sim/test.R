@@ -174,3 +174,7 @@ mean(draw.nu)
 mean(diag(cov(data.lnirt$RTZ[,1:20], data.lnirt$RTZ[,21:40])))
 cor(out.lnirt$Z[,2], data.lnirt$RTZ[,22])
 
+
+
+dat2 <- simdataLNIRT2(N = 1000, K = 5, delta = 0.25, tau = 0.35, nu = rep(-0.2, 5))
+
