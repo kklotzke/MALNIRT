@@ -147,7 +147,14 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
         mu.Z <- (mean(theta.min1) - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
         Z[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y[, kk] == 0]
         Z[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y[, kk] == 1]
+        #boundary <- 0
+        #Z[Y[, kk]==0, kk] <- truncnorm::rtruncnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), a = -Inf, b = boundary)[Y[, kk]==0]
+        #Z[Y[, kk]==1, kk] <- truncnorm::rtruncnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), a = boundary, b = Inf)[Y[, kk]==1]
+        #Z[Y[, kk]==0, kk] <- msm::rtnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), lower = -Inf, upper = boundary)[Y[, kk]==0]
+        #Z[Y[, kk]==1, kk] <- msm::rtnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), lower = boundary, upper = Inf)[Y[, kk]==1]
       }
+
+      #print(mean(Z[, 1]))
 
       for (gg in 1:G) {
         N.g <- nrow(Y.group[[gg]])
@@ -160,12 +167,17 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
           beta1 <- beta.min1[-kk]
           Z1 <- Z.group[[gg]][, -kk] # Latent responses to all but the current item
           mu.Z <- (theta.min1[gg] - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
-          Z.group[[gg]][Y.group[[gg]][, kk]==0, kk] <- qnorm(runif(N.g, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 0]
-          Z.group[[gg]][Y.group[[gg]][, kk]==1, kk] <- qnorm(runif(N.g, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 1]
+          boundary <- 0#mu.Z
+          #Z.group[[gg]][Y.group[[gg]][, kk]==0, kk] <- qnorm(runif(N.g, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 0]
+          #Z.group[[gg]][Y.group[[gg]][, kk]==1, kk] <- qnorm(runif(N.g, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y.group[[gg]][, kk] == 1]
+          Z.group[[gg]][Y.group[[gg]][, kk]==0, kk] <- truncnorm::rtruncnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), a = -Inf, b = boundary)[Y.group[[gg]][, kk]==0]
+          Z.group[[gg]][Y.group[[gg]][, kk]==1, kk] <- truncnorm::rtruncnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), a = boundary, b = Inf)[Y.group[[gg]][, kk]==1]
+          #Z.group[[gg]][Y.group[[gg]][, kk]==0, kk] <- msm::rtnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), lower = -Inf, upper = boundary)[Y.group[[gg]][, kk]==0]
+          #Z.group[[gg]][Y.group[[gg]][, kk]==1, kk] <- msm::rtnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), lower = boundary, upper = Inf)[Y.group[[gg]][, kk]==1]
         }
       }
 
-      ### Sample speed parameters group means ###
+      ### Sample ability parameters group means ###
 
       # Hyper parameters
       #flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
@@ -184,7 +196,7 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
         }
       }
 
-      # Draw G speed parameter group means
+      # Draw G ability parameter group means
       theta <- rnorm(G, mu.theta, sqrt(var.theta))
       chain[[2]][ii, ] <- theta
 

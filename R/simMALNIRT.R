@@ -262,10 +262,9 @@ simdataLNIRT2 <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, t
     ZT2[, k] <- rnorm(N, mean = mu_ZT2[, k], sd = sqrt(var_ZT2[k]))
 
     # Truncate at mean of latent item response
-    Y[ZT2[, k] > mean(mu_ZT2[, k]), k] <- 1
+    #Y[ZT2[, k] > mean(mu_ZT2[, k]), k] <- 1
+    Y[ZT2[, k] > 0, k] <- 1
   }
-
-
 
   return(list(Y = Y, RT = RT, Z = ZT2, Z2 = ZT, beta = beta, lambda = lambda,
               mu_theta = mu_theta, mu_zeta = mu_zeta, theta_i = theta, zeta_i = zeta,

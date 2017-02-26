@@ -176,5 +176,17 @@ cor(out.lnirt$Z[,2], data.lnirt$RTZ[,22])
 
 
 
-dat2 <- simdataLNIRT2(N = 1000, K = 5, delta = 0.25, tau = 0.35, nu = rep(-0.2, 5))
+dat2 <- simdataLNIRT2(N = 1000, K = 20, delta = 0.2, tau = 0.35, nu = runif(20, -0.5, 0.5))
+out2 <- MALNIRT(Y = Y, RT = RT, data = dat2, XG = 800, est.person = FALSE)
 
+
+dat3 <- simdataIRT(1000, 10, c(0.25,0))
+out3 <- MAIRT(Y = Y, data = dat3, XG = 500, est.person = FALSE)
+summary(out3$beta - dat3$beta)
+
+out2$nu - dat2$nu
+summary(out2$nu - dat2$nu)
+
+-colMeans(out2$ZT2) - out2$beta
+summary(out2$beta - dat2$beta)
+summary(out2$lambda - dat2$lambda)
