@@ -2,6 +2,7 @@
 
 export(MAIRT)
 export(MALNIRT)
+export(MALNIRT2)
 export(MALNRT)
 export(helmert)
 export(sampleTheta_i)

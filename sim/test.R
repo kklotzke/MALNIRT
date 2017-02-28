@@ -190,3 +190,17 @@ summary(out2$nu - dat2$nu)
 -colMeans(out2$ZT2) - out2$beta
 summary(out2$beta - dat2$beta)
 summary(out2$lambda - dat2$lambda)
+
+
+dat4 <- simdataLNIRT2(N = 1000, K = 10, delta = 0.2, tau = 0.35, nu = runif(10, -0.5, 0.5))
+out4 <- MALNIRT2(Y = Y, RT = RT, data = dat4, XG = 1500, est.person = FALSE)
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 1500, est.person = FALSE)
+
+summary(out5$nu - dat4$nu)
+summary(out4$nu - dat4$nu)
+#mean(out4$nu)
+
+summary(out4$o - dat4$nu)
+#mean(out4$o)
+out4$o.accept
+
