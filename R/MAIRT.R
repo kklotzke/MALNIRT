@@ -237,7 +237,6 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
       # Draw covariance parameter
       chain[[5]][ii,,1] <- tau <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
 
-
       ## For each group
       for(gg in 1:G) {
         N.g <- nrow(Z.group[[gg]])

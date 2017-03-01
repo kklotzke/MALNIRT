@@ -350,6 +350,7 @@ MALNIRT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
       tmp1.r.cand <- tmp2.r.cand <- rep(0, K)
 
       b <- var.b <- mu.b <- numeric(K)
+      ok.accept <- numeric(K)
       for (k in 1:K) {
         u <- runif (1, 0, 1)
 
@@ -376,11 +377,13 @@ MALNIRT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
           b[k] <- rnorm(1, mean = mu.cand, sd = sqrt(var.cand))
           chain[[18]][ii, k] <- o.cand[k]
           o.accept <- c(o.accept, 1)
+          ok.accept[k] <- 1
         }
         else { # Reject
           b[k] <- rnorm(1, mean = mu, sd = sqrt(var))
           chain[[18]][ii, k] <- o.s0[k]
           o.accept <- c(o.accept, 0)
+          ok.accept[k] <- 0
         }
 
         #var.b[k] <- (1/(1/var0.b + tmp1.r[k]))
@@ -428,10 +431,15 @@ MALNIRT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
       tmp1.s <- tmp2.s <- rep(0, K)
       b2 <- var.b2 <- mu.b2 <- numeric(K)
       for (k in 1:K) {
+        if (ok.accept[k] == 1)
+          s.tmp <- s.cand[, k]
+        else
+          s.tmp <- s[, k]
+
         for (i in 1:N) {
-          #s <- r[i, k] - nu[k]*x[i, k] + mu_Z[k] # mu_Z = -beta
+          #s <- r[i, k] - nu.s0[k]*x[i, k] + mu_Z[k] # mu_Z = -beta
           tmp1.s[k] <- tmp1.s[k] + 1 * 1/var_ZT2[k] * 1
-          tmp2.s[k] <- tmp2.s[k] + 1 * 1/var_ZT2[k] * s[i, k]
+          tmp2.s[k] <- tmp2.s[k] + 1 * 1/var_ZT2[k] * s.tmp[i] #s[i, k]
         }
 
         var.b2[k] <- (1/(1/var0.beta + tmp1.s[k]))
@@ -439,8 +447,6 @@ MALNIRT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
         b2[k] <- rnorm(1, mean = mu.b2[k], sd = sqrt(var.b2[k]))
       }
       chain[[1]][ii, ] <- beta <- -b2
-
-
 
       ### Sample covariance parameter
 
