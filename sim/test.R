@@ -192,10 +192,16 @@ summary(out2$beta - dat2$beta)
 summary(out2$lambda - dat2$lambda)
 
 
-out4 <- MALNIRT2(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 1500, est.person = FALSE)
+#out4 <- MALNIRT3(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
+dat4 <- simdataLNIRT2(N = 1000, K = 10, delta = 0.25, tau = 0.1, nu = runif(10, -0.2, 0.2))
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 500, est.person = FALSE)
+summary(out5$nu - dat4$nu)
+out5$nu
+out5$sd.nu
+out5$mce.nu
+summary(out5$beta - dat4$beta)
 
-dat4 <- simdataLNIRT2(N = 1000, K = 10, delta = 0.2, tau = 0.35, nu = runif(10, -0.5, 0.5))
+
 #dat6 <- simdataLNRT(1000, 10, c(0.2,0))
 out6 <- MALNRT(RT = RT, data = dat4, est.person = FALSE)
 out6$delta
@@ -204,7 +210,6 @@ summary(out6$sig2k[,1] - dat4$sig2k)
 out7 <- MAIRT(Y = Y, data = dat4, est.person = FALSE)
 out7$tau
 
-summary(out5$nu - dat4$nu)
 summary(out4$nu - dat4$nu)
 summary(out4$beta - dat4$beta)
 

@@ -170,6 +170,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
     ZT <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Z|T
     ZT2 <- matrix(0, ncol = K, nrow = N) # Zk|Z.mink, T1..p
+    mu_ZT2 <- matrix(0, ncol = K, nrow = N)
 
     Z <- matrix(0, ncol = K, nrow = N)
 
@@ -270,7 +271,6 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       J.min1 <- matrix(1, nrow = K-1, ncol = K-1)
       ones.min1 <- rep(1, K-1)
 
-      mu_ZT2 <- matrix(0, ncol = K, nrow = N)
       var_ZT2 <- numeric(K)
       r <- matrix(NA, ncol = K, nrow = N)
       s <- matrix(NA, ncol = K, nrow = N)
@@ -290,9 +290,11 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         B21 <- t(B12)
         B22.inv <- A.min1.inv - (A.min1.inv_w %*% t(A.min1.inv_w)) / d.min1[1,1]
 
-        tmp <- B12 %*% B22.inv %*% t(ZT[, -k] - mu_ZT[, -k])
+        #tmp <- B12 %*% B22.inv %*% t(ZT[, -k] - mu_ZT[, -k])
+        tmp <- B12 %*% B22.inv %*% t(ZT2[, -k] - mu_ZT2[, -k])
         mu_ZT2[, k] <-  mu_ZT[, k] + tmp
         var_ZT2[k] <- B11 - B12 %*% B22.inv %*% B21
+
 
         # Sample Zk|Z.mink, T1..p
         boundary <- 0
@@ -559,6 +561,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
     #post.RT.Z.group[[gg]] <- (chain.1[[16]][[gg]] + chain.2[[16]][[gg]]) / 2
   }
   post.nu <- colMeans((chain.1[[17]][XG.burnin:XG, ] + chain.2[[17]][XG.burnin:XG, ]) / 2)
+  sd.nu <- apply((chain.1[[17]][XG.burnin:XG, ] + chain.2[[17]][XG.burnin:XG, ]) / 2, FUN = sd, MARGIN = 2)
+  mce.nu <- sd.nu / sqrt(2*(XG - XG.burnin))
 
 
   if(est.person)
@@ -648,5 +652,5 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   post.zeta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
 
   return(list(beta = post.beta, lambda = post.lambda, theta = post.theta, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2,
-              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu = post.nu, ZT = ZT, ZT2 = ZT2))
+              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu = post.nu, sd.nu = sd.nu, mce.nu = mce.nu, ZT = ZT, ZT2 = ZT2))
 }
