@@ -411,6 +411,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
       # Helmert transformation
       errors <- ZT2 + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
+      browser()
+      print(mean(diag(cov(errors))) - 1)
       tmat <- errors %*% t(hmat)
 
       # # Between sum of squares
