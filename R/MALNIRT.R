@@ -258,13 +258,13 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       }
 
       # Sigma Z|T
-      Sigma_ZT <- Sigma_Z - Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
+      #Sigma_ZT <- Sigma_Z - Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
 
       # Sample Z|T
-      for(i in 1:N)
-      {
-        ZT[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT[i, ], sigma = Sigma_ZT)
-      }
+      #for(i in 1:N)
+      #{
+      #  ZT[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT[i, ], sigma = Sigma_ZT)
+      #}
 
       # Conditional mean of Zk|Z.mink, T1..p for each item
       I.min1 <- diag(K-1)
@@ -274,6 +274,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       var_ZT2 <- numeric(K)
       r <- matrix(NA, ncol = K, nrow = N)
       s <- matrix(NA, ncol = K, nrow = N)
+      #mu_ZT2.new <- matrix(NA, ncol = K, nrow = N)
       for (k in 1:K)
       {
         w.min1 <- nu.s0[-k]/sig2k.s0[-k]
@@ -293,6 +294,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         #tmp <- B12 %*% B22.inv %*% t(ZT[, -k] - mu_ZT[, -k])
         tmp <- B12 %*% B22.inv %*% t(ZT2[, -k] - mu_ZT2[, -k])
         mu_ZT2[, k] <-  mu_ZT[, k] + tmp
+        #mu_ZT2.new[, k] <-  mu_Z[k] + tmp
         var_ZT2[k] <- B11 - B12 %*% B22.inv %*% B21
 
 
@@ -307,8 +309,23 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
         r[, k] <- (ZT2[, k] - mu_Z[k]) - tmp[1, ]
         s[, k] <- ZT2[, k] - tmp[1, ] - nu.s0[k]*x[,k]
-
+#
+#         ### Sample covariance responses-response times ###
+#         var0.b <- 10^10
+#         mu0.b <- 0
+#
+#         tmp1.r <- tmp2.r <- 0
+#         for (i in 1:N) {
+#           tmp1.r <- tmp1.r + x[i, k] * 1/var_ZT2[k] * x[i, k]
+#           tmp2.r <- tmp2.r + x[i, k] * 1/var_ZT2[k] * r[i, k]
+#         }
+#
+#         var.b <- (1/(1/var0.b + tmp1.r))
+#         mu.b <- (var.b * (mu0.b/var0.b + tmp2.r))
+#         b <- rnorm(1, mean = mu.b, sd = sqrt(var.b))
+#         chain[[17]][ii, k] <- b
       }
+
       #print(mean(ZT2[, 1]))
 
       ### Sample covariance responses-response times ###
@@ -320,7 +337,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       for (k in 1:K) {
         for (i in 1:N) {
           tmp1.r[k] <- tmp1.r[k] + x[i, k] * 1/var_ZT2[k] * x[i, k]
-          tmp2.r[k] <- tmp2.r[k] + x[i, k] * 1/var_ZT2[k] * r[i, k]
+          tmp2.r[k] <- tmp2.r[k] + x[i, k] * 1/var_ZT2[k] * r[i, k] #ZT2[i, k] #
         }
 
         var.b[k] <- (1/(1/var0.b + tmp1.r[k]))
@@ -357,7 +374,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
       ### Sample item difficulty paramaters ###
 
-      # Hyper parameters
+      # # Hyper parameters
       SS <- b.beta + sum((beta.s0 - mean(beta.s0))^2) + (K*n0.beta*mean(beta.s0))/(2*(K + n0.beta))
       var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
       mu0.beta <- rnorm(1, (-K*var0.beta*mean(beta.s0))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
@@ -365,33 +382,42 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       #var0.beta <- 10^10
       #mu0.beta <- 0
 
-      tmp1.s <- tmp2.s <- rep(0, K)
-      b2 <- var.b2 <- mu.b2 <- numeric(K)
-      for (k in 1:K) {
-        for (i in 1:N) {
-          #s <- r[i, k] - nu[k]*x[i, k] + mu_Z[k] # mu_Z = -beta
-          tmp1.s[k] <- tmp1.s[k] + 1 * 1/var_ZT2[k] * 1
-          tmp2.s[k] <- tmp2.s[k] + 1 * 1/var_ZT2[k] * s[i, k]
-        }
+      var.beta <- 1/(N*(var.gen.Z[1]) + 1/var0.beta)
+      mu.beta <- var.beta*((N*(- colMeans(ZT2)))*(var.gen.Z[1]) + mu0.beta/var0.beta)
 
-        var.b2[k] <- (1/(1/var0.beta + tmp1.s[k]))
-        mu.b2[k] <- (var.b2[k] * (mu0.beta/var0.beta + tmp2.s[k]))
-        b2[k] <- rnorm(1, mean = mu.b2[k], sd = sqrt(var.b2[k]))
-      }
-      chain[[1]][ii, ] <- beta <- -b2
+      # Draw K time intensity parameters
+      chain[[1]][ii, ] <- beta <- rnorm(K, mu.beta, sqrt(var.beta))
+      # #print(beta)
+
+#
+#       tmp1.s <- tmp2.s <- rep(0, K)
+#       b2 <- var.b2 <- mu.b2 <- numeric(K)
+#       for (k in 1:K) {
+#         for (i in 1:N) {
+#           #s <- r[i, k] - nu[k]*x[i, k] + mu_Z[k] # mu_Z = -beta
+#           tmp1.s[k] <- tmp1.s[k] + 1 * 1/var_ZT2[k] * 1
+#           tmp2.s[k] <- tmp2.s[k] + 1 * 1/var_ZT2[k] * s[i, k]
+#         }
+#
+#         var.b2[k] <- (1/(1/var0.beta + tmp1.s[k]))
+#         mu.b2[k] <- (var.b2[k] * (mu0.beta/var0.beta + tmp2.s[k]))
+#         b2[k] <- rnorm(1, mean = mu.b2[k], sd = sqrt(var.b2[k]))
+#       }
+#       chain[[1]][ii, ] <- beta <- -b2
 
 
 
       ### Sample covariance parameter
 
       # Helmert transformation
-      # errors <- Z + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
-      # tmat <- errors %*% t(hmat)
-      # tmp.zh <- errors %*% t(hmat2)
-      #
+      errors <- ZT2 + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
+      tmat <- errors %*% t(hmat)
+
       # # Between sum of squares
-      # mean.person <- apply(errors,1,mean)
-      # SSb <- sum((mean.person - mean(errors))^2)
+      mean.person <- apply(errors,1,mean)
+      SSb <- sum((mean.person - mean(errors))^2)
+
+      #print(mean(1 / rgamma(10000, N/2, SSb/2) - 1/K))
 
       # Draw covariance parameter
       chain[[9]][ii,,1] <- tau <- data$tau# 1 / rgamma(1, N/2, SSb/2) - 1/K
@@ -473,14 +499,14 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       ### Sample covariance parameter
 
       # Helmert transformation
-      # errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta) #+ matrix(zeta_i, nrow = N, ncol = K)
-      # tmat <- errors %*% t(hmat)
-      # tmp.rt <- errors %*% t(hmat2)
-      # #print(mean(diag(cov(tmp.zh, tmp.rt))))
-      #
-      # # Between sum of squares
-      # mean.person <- apply(errors,1,mean)
-      # SSb <- sum((mean.person - mean(errors))^2)
+      errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ mean(zeta) #+ matrix(zeta_i, nrow = N, ncol = K)
+      tmat <- errors %*% t(hmat)
+
+      # Between sum of squares
+      mean.person <- apply(errors,1,mean)
+      SSb <- sum((mean.person - mean(errors))^2)
+
+      #print(mean(1 / rgamma(10000, N/2, SSb/2) - sig2/K))
 
       # Draw covariance parameter
       chain[[10]][ii,,1] <- delta <- data$delta# 1 / rgamma(1, N/2, SSb/2) - sig2/K
@@ -515,8 +541,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
 
 
-      if ((!silent) && (ii%%100 == 0))
+      if ((!silent) && (ii%%100 == 0)) {
         cat("Iteration ", ii, " ", "\n")
+        print(beta[1])
+      }
       flush.console()
     }
 

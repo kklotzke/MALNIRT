@@ -986,13 +986,13 @@ MALNIRT3 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
       Sigma_T.inv <- (1/sig2k.s0)*I - ((1/sig2k.s0)%*%t(1/sig2k.s0)) / a #solve(Sigma_T)
 
       # Sigma Z|T
-      Sigma_ZT.cand <- Sigma_Z - Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
+      #Sigma_ZT.cand <- Sigma_Z - Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
 
       # Sample Z|T
-      for(i in 1:N)
-      {
-        ZT.cand[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT.cand[i, ], sigma = Sigma_ZT.cand)
-      }
+      #for(i in 1:N)
+      #{
+        #ZT.cand[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT.cand[i, ], sigma = Sigma_ZT.cand)
+      #}
 
       # Conditional mean of Zk|Z.mink, T1..p for each item
       I.min1 <- diag(K-1)
@@ -1022,7 +1022,7 @@ MALNIRT3 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
 
         B22.inv <- A.min1.inv - (A.min1.inv_w %*% t(A.min1.inv_w)) / d.min1[1,1]
 
-        tmp <- B12 %*% B22.inv %*% t(ZT.cand[, -k] - mu_ZT.cand[, -k])
+        tmp <- B12 %*% B22.inv %*% t(ZT2[, -k] - mu_ZT2[, -k])
         mu_ZT2[, k] <-  mu_ZT.cand[, k] + tmp
         var_ZT2[k] <- B11 - B12 %*% B22.inv %*% B21
 
@@ -1059,7 +1059,7 @@ MALNIRT3 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.
           chain[[17]][ii, k] <- nu.cand[k]
           nu.accept <- c(nu.accept, 1)
           lik_ZT2[k] <- lik_ZT2.cand[k]
-          ZT[k] <- ZT.cand[k]
+          #ZT[k] <- ZT.cand[k]
           ZT2[k] <- ZT2.cand[k]
         }
         else { # Reject

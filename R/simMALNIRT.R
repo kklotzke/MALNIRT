@@ -146,17 +146,17 @@ simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, th
   A22.inv <- solve(Sigma.lnrt)
   muz <- mean(RTZ[,1:K])
   muT <- mean(RTZ[,(K+1):(2*K)])
-  Sigma.ZRT <- Sigma.irt - nu[1]^2 * A22.inv
+  Sigma.ZRT <- Sigma.irt - diag(nu) %*% A22.inv %*% diag(nu)
   Sigma.ZRT.inv  <- solve(Sigma.ZRT)
 
   ZRT <- matrix(NA, nrow = N, ncol = K)
   for (i in 1:N) {
-    ZRT[i, ] <- muz + (nu[1] * I) %*% A22.inv %*% (RTZ[i, (K+1):(2*K)] - muT)
+    ZRT[i, ] <- muz + (nu * I) %*% A22.inv %*% (RTZ[i, (K+1):(2*K)] - muT)
   }
 
 
-  return(list(RTY = RTY, RTZ = RTZ, ZRT = ZRT, lambda = lambda, beta = beta, zeta = mean(zeta), zeta_i = zeta, theta = mean(theta), theta_i = theta, means = means,
-              Sigma = Sigma, Sigma.nu = Sigma.nu, Sigma.lnrt = Sigma.lnrt, Sigma.irt = Sigma.irt, sig2k.lnrt = sig2k.lnrt, sig2k.irt = sig2k.irt, delta = delta, tau = tau, nu = nu))
+  return(list(Y = RTY[, 1:K], RT = RTY[, (K+1):(2*K)], Z = RTZ[, 1:K], ZRT = ZRT[, 1:K], lambda = lambda, beta = beta, zeta = mean(zeta), zeta_i = zeta, theta = mean(theta), theta_i = theta, means = means,
+              Sigma = Sigma, Sigma.nu = Sigma.nu, Sigma.lnrt = Sigma.lnrt, Sigma.irt = Sigma.irt, sig2k = sig2k.lnrt, delta = delta[1], tau = tau[1], nu = nu))
 }
 
 
