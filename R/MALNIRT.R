@@ -101,7 +101,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   if (is.null(inits.1)) {
     inits.1 <- vector("list", 10)
     inits.1[[1]] <- rnorm(K, 0, 1) # Item difficulty
-    inits.1[[2]] <- rnorm(K, 10, 5) # Time intensity
+    inits.1[[2]] <- rnorm(K, 5, 1) # Time intensity
     inits.1[[3]] <- rnorm(G, 0, 1) # Abiliy group means
     inits.1[[4]] <- rnorm(G, 10, 5) # Speed group means
     inits.1[[5]] <- rnorm(N, 0, 1) # Person ability parameter
@@ -114,7 +114,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   if (is.null(inits.2)) {
     inits.2 <- vector("list", 10)
     inits.2[[1]] <- rnorm(K, 0, 1) # Item difficulty
-    inits.2[[2]] <- rnorm(K, 10, 5) # Time intensity
+    inits.2[[2]] <- rnorm(K, 5, 1) # Time intensity
     inits.2[[3]] <- rnorm(G, 0, 1) # Abiliy group means
     inits.2[[4]] <- rnorm(G, 10, 5) # Speed group means
     inits.2[[5]] <- rnorm(N, 0, 1) # Person ability parameter
@@ -150,8 +150,8 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
   }
 
-  chains.list[[1]][[17]][1, ] <- 0.2
-  chains.list[[2]][[17]][1, ] <- -0.2
+  chains.list[[1]][[17]][1, ] <- -0.3
+  chains.list[[2]][[17]][1, ] <- -0.3
 
   # Create helmert matrix
   hmat <- helmert(K)
@@ -168,12 +168,18 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
   for (cc in 1:2) {
     chain <- chains.list[[cc]] # Read the cc-th chain
 
-    ZT <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Z|T
-    ZT2 <- matrix(0, ncol = K, nrow = N) # Zk|Z.mink, T1..p
+    #ZT <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Z|T
+    #ZT.cand <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Z|T
+    ZT2 <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
+    ZT2.cand <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
     mu_ZT2 <- matrix(0, ncol = K, nrow = N)
-
+    mu_ZT <- mu_ZT.cand <- matrix(0, ncol = K, nrow = N)
+    Sigma_ZT <- matrix(1, ncol = K, nrow = K)
     Z <- matrix(0, ncol = K, nrow = N)
     tau.cand <- 0
+    delta.cand <- 0
+    nu.cand <- numeric(K)
+    mh.accept <- 0
 
     #Z <- chain[[11]]
     #Z.group <- chain[[12]]
@@ -183,7 +189,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
     #RT.Z.group <- chain[[16]]
 
     # For each iteration
-    for (ii in 2:XG) {
+    ii <- 2
+    while (ii <= XG) {
+    #for (ii in 2:XG) {
 
       # Read values from former chain (t-1)
       beta.s0 <- chain[[1]][ii-1, ]
@@ -197,9 +205,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       nu.s0 <- chain[[17]][ii-1, ]
 
       # Generalize sigma^2 (fixed to 1) and tau
-      ones <- rep(1, K)
-      varinv <- diag(1/(rep(1,K) + tau.s0[1]))
-      var.gen.Z <- (t(ones) %*% varinv) %*% ones
+      # ones <- rep(1, K)
+      # varinv <- diag(1/(rep(1,K) + tau.s0[1]))
+      # var.gen.Z <- (t(ones) %*% varinv) %*% ones
       if (G > 1) {
         for (gg in 1:G) {
           varinv <- diag(1/(rep(1,K) + tau.s0[gg+1]))
@@ -232,6 +240,7 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       I <- diag(K)
       J <- matrix(1, nrow = K, ncol = K)
       a <- 1/delta.s0[1] + sum(1/sig2k.s0)
+      a.cand <- 1/delta.cand + sum(1/sig2k.s0)
 
       # Means latent responses, response times
       mu_Z <- -beta.s0 # Assuming mu_theta = 0
@@ -241,45 +250,82 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       Sigma_Z <- I + tau.s0[1]*J
       Sigma_T <- sig2k.s0*I + delta.s0[1]*J
       Sigma_Z_T <- nu.s0*I
+      Sigma_Z.cand <- I + tau.cand*J
+      Sigma_T.cand <- sig2k.s0*I + delta.cand*J
+      Sigma_Z_T.cand <- nu.cand*I
 
       # Sigma_11.inv, Sigma_22.inv
       Sigma_Z.inv <- I - J / (1/tau.s0[1] + K) #solve(Sigma_Z)
       Sigma_T.inv <- (1/sig2k.s0)*I - ((1/sig2k.s0)%*%t(1/sig2k.s0)) / a #solve(Sigma_T)
+      Sigma_Z.inv.cand <- I - J / (1/tau.cand + K)
+      Sigma_T.inv.cand <- (1/sig2k.s0)*I - ((1/sig2k.s0)%*%t(1/sig2k.s0)) / a.cand
 
       # Sigma Z|T
       Sigma_ZT <- Sigma_Z - Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
+      Sigma_ZT.cand <- Sigma_Z.cand - Sigma_Z_T.cand %*% Sigma_T.inv.cand %*% Sigma_Z_T.cand
       #browser()
       #tmp.sigma <- Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
       #print(Sigma_ZT + Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T)
 
       # Conditional mean of Z|T for each item
-      mu_ZT <- matrix(0, ncol = K, nrow = N)
-      x <- matrix(NA, ncol = K, nrow = N)
+      #mu_ZT <- matrix(0, ncol = K, nrow = N)
+      x <- x.cand <- matrix(NA, ncol = K, nrow = N)
       for (k in 1:K)
       {
         x[, k] <- (1/sig2k.s0[k]) * ((RT[, k] - mu_T[k]) - (RT[, k] - mu_T[k]) / (a * sig2k.s0[k]))
+        x.cand[, k] <- (1/sig2k.s0[k]) * ((RT[, k] - mu_T[k]) - (RT[, k] - mu_T[k]) / (a.cand * sig2k.s0[k]))
+
         mu_ZT[, k] <- mu_Z[k] + nu.s0[k] * x[, k]
+        mu_ZT.cand[, k] <- mu_Z[k] + nu.cand[k] * x.cand[, k]
       }
 
       # Sigma Z|T
       #Sigma_ZT <- Sigma_Z - Sigma_Z_T %*% Sigma_T.inv %*% Sigma_Z_T
 
-      # Sample Z|T
-      # for(i in 1:N)
-      # {
-      #   ZT[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT[i, ], sigma = Sigma_ZT)
-      # }
+      #lik <- sum(mvtnorm::dmvnorm(ZT, mean = mu_ZT[i, ], sigma = Sigma_ZT, log = TRUE))
+      #lik.cand <- sum(mvtnorm::dmvnorm(ZT, mean = mu_ZT[i, ], sigma = Sigma_ZT.cand, log = TRUE))
+
+
+      # # Sample Z|T
+#       for(i in 1:N)
+#       {
+#          ZT[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT[i, ], sigma = Sigma_ZT)
+#          ZT.cand[i, ] <- mvtnorm::rmvnorm(1, mean = mu_ZT[i, ], sigma = Sigma_ZT.cand)
+#      }
+#       lik <- sum(mvtnorm::dmvnorm(ZT, mean = mu_ZT.s0[i, ], sigma = Sigma_ZT.s0, log = TRUE))
+#       lik.cand <- sum(mvtnorm::dmvnorm(ZT.cand, mean = mu_ZT.s0[i, ], sigma = Sigma_ZT.s0, log = TRUE))
+# #browser()
+#       u <- runif (1, 0, 1)
+#       ar <- exp(lik.cand - lik)
+#       if(is.nan(ar))
+#         ar <- 0
+#
+#       if (u <= ar) {
+#         cat("Accept tau: ", tau.cand, "\n")
+#         chain[[9]][ii,,1] <- tau <- tau.cand
+#       }
+#       else {
+#         #cat("Reject tau: ", tau.cand, "\n")
+#         chain[[9]][ii,,1] <- tau <- tau.s0[1]
+#       }
+      #browser()
+      #print(tau.s0[1])
+      #print(tau.cand)
+
+
 
       # Conditional mean of Zk|Z.mink, T1..p for each item
       I.min1 <- diag(K-1)
       J.min1 <- matrix(1, nrow = K-1, ncol = K-1)
       ones.min1 <- rep(1, K-1)
 
-      var_ZT2 <- numeric(K)
+      var_ZT2 <- var_ZT2.cand <- numeric(K)
       r <- matrix(NA, ncol = K, nrow = N)
       s <- matrix(NA, ncol = K, nrow = N)
+      mu_ZT2.cand <- matrix(0, ncol = K, nrow = N)
       #mu_ZT2.new <- matrix(NA, ncol = K, nrow = N)
       tmp.var <- numeric(K)
+      lik_k <- lik_k.cand <- numeric(K)
       for (k in 1:K)
       {
         w.min1 <- nu.s0[-k]/sig2k.s0[-k]
@@ -304,17 +350,85 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         var_ZT2[k] <- B11 - B12 %*% B22.inv %*% B21
 
 
+        ### MH candidates ###
+        w.min1.cand <- nu.cand[-k]/sig2k.s0[-k]
+        b.min1.cand <- sig2k.s0[-k] / (sig2k.s0[-k] - nu.cand[-k]^2)
+        c.min1.cand <- 1/tau.cand + sum(b.min1.cand)
+        A.min1.inv.cand <- b.min1.cand*I.min1 - (b.min1.cand %*% t(b.min1.cand)) / c.min1.cand
+        d.min1.cand <- a.cand + t(w.min1.cand) %*% A.min1.inv.cand %*% w.min1.cand
+        g.min1.cand <- sum(nu.cand[-k] / (sig2k.s0[-k] - nu.cand[-k]^2)) / c.min1.cand
+        A.min1.inv_w.cand <- (nu.cand[-k] / (sig2k.s0[-k] - nu.cand[-k]^2) - g.min1.cand*b.min1.cand)
+
+        B11.cand <- 1 + tau.cand - nu.cand[k]^2 * (1/sig2k.s0[k] - ((1/sig2k.s0[k])^2) / a.cand)
+        B22.cand <- (1 - (nu.cand[-k]^2) / sig2k.s0[-k])*I.min1 + tau.cand*J.min1 + w.min1.cand %*% t(w.min1.cand) / a.cand
+        B12.cand <- tau.cand*ones.min1 + ((nu.cand[k] / sig2k.s0[k]) %*% t(w.min1.cand)) / a.cand
+        B21.cand <- t(B12.cand)
+        B22.inv.cand <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
+
+        #tmp <- B12 %*% B22.inv %*% t(ZT[, -k] - mu_ZT[, -k])
+        tmp.cand <- B12.cand %*% B22.inv.cand %*% t(ZT2.cand[, -k] - mu_ZT2.cand[, -k])
+        mu_ZT2.cand[, k] <-  mu_ZT.cand[, k] + tmp.cand
+        var_ZT2.cand[k] <- B11.cand - B12.cand %*% B22.inv.cand %*% B21.cand
+        #######################
+
         # Sample Zk|Z.mink, T1..p
-        boundary <- 0
-        ZT2[Y[,k]==0, k] <- truncnorm::rtruncnorm(n = N, mean = mu_ZT2[, k], sd = sqrt(var_ZT2[k]), a = -Inf, b = boundary)[Y[, k]==0]
-        ZT2[Y[,k]==1, k] <- truncnorm::rtruncnorm(n = N, mean = mu_ZT2[, k], sd = sqrt(var_ZT2[k]), a = boundary, b = Inf)[Y[, k]==1]
+        ZT2[Y[,k]==0, k] <- truncnorm::rtruncnorm(n = length(mu_ZT2[Y[, k]==0, k]), mean = mu_ZT2[Y[, k]==0, k], sd = sqrt(var_ZT2[k]), a = -Inf, b = 0)
+        ZT2[Y[,k]==1, k] <- truncnorm::rtruncnorm(n = length(mu_ZT2[Y[, k]==1, k]), mean = mu_ZT2[Y[, k]==1, k], sd = sqrt(var_ZT2[k]), a = 0, b = Inf)
+        ZT2.cand[Y[,k]==0, k] <- truncnorm::rtruncnorm(n = length(mu_ZT2.cand[Y[, k]==0, k]), mean = mu_ZT2.cand[Y[, k]==0, k], sd = sqrt(var_ZT2.cand[k]), a = -Inf, b = 0)
+        ZT2.cand[Y[,k]==1, k] <- truncnorm::rtruncnorm(n = length(mu_ZT2.cand[Y[, k]==1, k]), mean = mu_ZT2.cand[Y[, k]==1, k], sd = sqrt(var_ZT2.cand[k]), a = 0, b = Inf)
+
+        # browser()
+        lik0 <- sum(log(truncnorm::dtruncnorm(x = ZT2[Y[,k]==0, k], mean = mu_ZT2[Y[, k]==0, k], sd = sqrt(var_ZT2[k]), a = -Inf, b = 0)))
+        lik1 <- sum(log(truncnorm::dtruncnorm(x = ZT2[Y[,k]==1, k], mean = mu_ZT2[Y[, k]==1, k], sd = sqrt(var_ZT2[k]), a = 0, b = Inf)))
+        lik_k[k] <- lik0 + lik1
+
+        lik0.cand <- sum(log(truncnorm::dtruncnorm(x = ZT2.cand[Y[,k]==0, k], mean = mu_ZT2.cand[Y[, k]==0, k], sd = sqrt(var_ZT2.cand[k]), a = -Inf, b = 0)))
+        lik1.cand <- sum(log(truncnorm::dtruncnorm(x = ZT2.cand[Y[,k]==1, k], mean = mu_ZT2.cand[Y[, k]==1, k], sd = sqrt(var_ZT2.cand[k]), a = 0, b = Inf)))
+        lik_k.cand[k] <- lik0.cand + lik1.cand
+
+        r[, k] <- (ZT2[, k] - mu_Z[k]) - tmp[1, ]
+        #s[, k] <- ZT2[, k] - tmp[1, ] - nu.s0[k]*x[,k]
+      }
+# browser()
+#print(sum(lik_k.cand))
+#print(sum(lik_k))
+      u <- runif (1, 0, 1)
+      ar <- exp(sum(lik_k.cand) - sum(lik_k))
+      if(is.nan(ar))
+        ar <- 0
+
+      if (u <= ar) {
+        #cat("Accept tau|delta|nu: ", tau.cand, "|", delta.cand, "|", nu.cand, "\n")
+        chain[[9]][ii,,1] <- tau <- tau.cand
+        chain[[10]][ii,,1] <- delta <- delta.cand
+        chain[[17]][ii, ] <- nu <- nu.cand
+        mu_ZT2 <- mu_ZT2.cand
+        var_ZT2 <- var_ZT2.cand
+        tmp <- tmp.cand
+        ZT2 <- ZT2.cand
+        mh.accept <- mh.accept + 1
+      }
+      else {
+        #print("Reject tau")
+        #cat("Reject tau|delta|nu: ", tau.cand, "|", delta.cand, "|", nu.cand, "\n")
+        chain[[9]][ii,,1] <- tau <- tau.s0[1]
+        chain[[10]][ii,,1] <- delta <- delta.s0[1]
+        chain[[17]][ii, ] <- nu <- nu.s0
+      }
+
+      for(k in 1:K) {
+
+        # Sample Zk|Z.mink, T1..p
+        #ZT2[Y[,k]==0, k] <- truncnorm::rtruncnorm(n = length(mu_ZT2[Y[, k]==0, k]), mean = mu_ZT2[Y[, k]==0, k], sd = sqrt(var_ZT2[k]), a = -Inf, b = 0)
+        #ZT2[Y[,k]==1, k] <- truncnorm::rtruncnorm(n = length(mu_ZT2[Y[, k]==1, k]), mean = mu_ZT2[Y[, k]==1, k], sd = sqrt(var_ZT2[k]), a = 0, b = Inf)
         #muz <- mu_ZT2[, k]
         #sz <- sqrt(var_ZT2[k])
         #ZT2[Y[,k]==0,k]<-qnorm(runif(N,0,pnorm(0,muz,sz)),muz,sz)[Y[,k]==0]
         #ZT2[Y[,k]==1,k]<-qnorm(runif(N,pnorm(0,muz,sz),1),muz,sz)[Y[,k]==1]
 
-        r[, k] <- (ZT2[, k] - mu_Z[k]) - tmp[1, ]
-        s[, k] <- ZT2[, k] - tmp[1, ] - nu.s0[k]*x[,k]
+        #r[, k] <- (ZT2[, k] - mu_Z[k]) - tmp[1, ]
+        #s[, k] <- ZT2[, k] - tmp[1, ] - nu.s0[k]*x[,k]
+      }
 #
 #         ### Sample covariance responses-response times ###
 #         var0.b <- 10^10
@@ -330,7 +444,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 #         mu.b <- (var.b * (mu0.b/var0.b + tmp2.r))
 #         b <- rnorm(1, mean = mu.b, sd = sqrt(var.b))
 #         chain[[17]][ii, k] <- b
-      }
+#      }
+#print(sum(lik_k))
+
+
 
       #print(mean(ZT2[, 1]))
 
@@ -351,7 +468,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
         b[k] <- rnorm(1, mean = mu.b[k], sd = sqrt(var.b[k]))
       }
 
-      chain[[17]][ii, ] <- nu <- b
+      nu.cand <- b #runif(K, nu.cand - 0.01, nu.cand + 0.01) #b
+      #print(b)
+      #chain[[17]][ii, ] <- nu <- b
 
 
       ### Sample ability parameters group means ###
@@ -380,6 +499,10 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
 
       ### Sample item difficulty paramaters ###
 
+      ones <- rep(1, K)
+      varinv <- diag(1/(rep(1,K) + tau))
+      var.gen.Z <- (t(ones) %*% varinv) %*% ones
+
       # # Hyper parameters
       SS <- b.beta + sum((beta.s0 - mean(beta.s0))^2) + (K*n0.beta*mean(beta.s0))/(2*(K + n0.beta))
       var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
@@ -396,34 +519,44 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       # #print(beta)
 
 #
-#       tmp1.s <- tmp2.s <- rep(0, K)
-#       b2 <- var.b2 <- mu.b2 <- numeric(K)
-#       for (k in 1:K) {
-#         for (i in 1:N) {
-#           #s <- r[i, k] - nu[k]*x[i, k] + mu_Z[k] # mu_Z = -beta
-#           tmp1.s[k] <- tmp1.s[k] + 1 * 1/var_ZT2[k] * 1
-#           tmp2.s[k] <- tmp2.s[k] + 1 * 1/var_ZT2[k] * s[i, k]
-#         }
-#
-#         var.b2[k] <- (1/(1/var0.beta + tmp1.s[k]))
-#         mu.b2[k] <- (var.b2[k] * (mu0.beta/var0.beta + tmp2.s[k]))
-#         b2[k] <- rnorm(1, mean = mu.b2[k], sd = sqrt(var.b2[k]))
-#       }
-#       chain[[1]][ii, ] <- beta <- -b2
+      # tmp1.s <- tmp2.s <- rep(0, K)
+      # b2 <- var.b2 <- mu.b2 <- numeric(K)
+      # for (k in 1:K) {
+      #   for (i in 1:N) {
+      #     #s <- r[i, k] - nu[k]*x[i, k] + mu_Z[k] # mu_Z = -beta
+      #     tmp1.s[k] <- tmp1.s[k] + 1 * 1/var_ZT2[k] * 1
+      #     tmp2.s[k] <- tmp2.s[k] + 1 * 1/var_ZT2[k] * s[i, k]
+      #   }
+      #
+      #   var.b2[k] <- (1/(1/var0.beta + tmp1.s[k]))
+      #   mu.b2[k] <- (var.b2[k] * (mu0.beta/var0.beta + tmp2.s[k]))
+      #   b2[k] <- rnorm(1, mean = mu.b2[k], sd = sqrt(var.b2[k]))
+      # }
+      # chain[[1]][ii, ] <- beta <- -b2
 
 
 
       ### Sample covariance parameter
 
       # Generate proposal for tau from marginalized ability model
+      mu0.beta <- 0
+      var0.beta <- 10^10
+
+      ones <- rep(1, K)
+      varinv <- diag(1/(rep(1,K) + tau.cand))
+      var.gen.mar <- (t(ones) %*% varinv) %*% ones
+      var.beta.mar <- 1/(N*(var.gen.mar) + 1/var0.beta)
+      mu.beta.mar <- var.beta.mar*((N*(- colMeans(Z)))*(var.gen.mar) + mu0.beta/var0.beta)
+      beta.mar <- rnorm(K, mu.beta.mar, sqrt(var.beta.mar))
+
       Sjc <- matrix(tau.cand / (1 + (K - 1) * tau.cand), ncol = 1, nrow = K - 1)
       var.Z.mar <- (1 + K * tau.cand)/(1 + (K - 1) * tau.cand)
       theta1 <- matrix(0, ncol = K - 1, nrow = N)
-
+#beta <- data$beta
       for (kk in 1:K){
-        beta1 <- beta[-kk]
+        beta1 <- beta.mar[-kk]
         Z1 <- Z[, -kk] # Latent responses to all but the current item
-        mu.Z.mar <- (- beta[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
+        mu.Z.mar <- (- beta.mar[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
         Z[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z.mar, sqrt(var.Z.mar))), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 0]
         Z[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z.mar, sqrt(var.Z.mar)),1), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 1]
       }
@@ -433,9 +566,12 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       # Draw covariance parameter
       tau.cand <- 1 / rgamma(1, N/2, SSb/2) - 1/K
       #print(tau.cand)
+      #tau.cand <- runif(1, 0.15 - 0.01, 0.15 + 0.01)
+      #tau.cand <- runif(1, 0.1, 0.5)
+      #print(tau.cand)
 
       # Helmert transformation
-      errors <- ZT + matrix(beta, nrow = N, ncol = K, byrow = TRUE) - matrix(nu.s0, nrow = N, ncol = K, byrow = TRUE)*x
+      #errors <- ZT + matrix(beta, nrow = N, ncol = K, byrow = TRUE) - matrix(nu.s0, nrow = N, ncol = K, byrow = TRUE)*x
       #errors <- ZT2
       #browser()
       #print(tmp.var)
@@ -445,9 +581,9 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       #tmat <- errors %*% t(hmat)
 
       # # Between sum of squares
-      mean.person <- apply(errors,1,mean)
-      SSb <- sum((mean.person - mean(errors))^2)
-
+      # mean.person <- apply(errors,1,mean)
+      # SSb <- sum((mean.person - mean(errors))^2)
+      #
       # tmp.sum <- 0
       # for (k in 1:K) {
       #  for (j in 1:K) {
@@ -457,41 +593,41 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       # }
       # minus <- 1/K + ((mean(nu.s0)/mean(sig2k.s0))^2) / (a*K) - (mean(nu.s0)^2)/(K*mean(sig2k.s0)) + tmp.sum
       #cat(mean(1 / rgamma(10000, N/2, SSb/2)), " | ", sum(Sigma_ZT)/(K^2), "\n")
-      #print(mean(1 / rgamma(10000, N/2, SSb/2) - minus)) # Possible proposal for tau
+      #tau.cand <- (mean(1 / rgamma(10000, N/2, SSb/2) - minus)) # Possible proposal for tau
       #print(minus)
 #cat(-mean(ZT[,1]), " | ", -mean(ZT2[,1]), " | ", data$beta[1], "\n")
 
       # Draw covariance parameter
       #chain[[9]][ii,,1] <- tau <- 1 / rgamma(1, N/2, SSb/2) - minus
-      chain[[9]][ii,,1] <- tau <- data$tau# 1 / rgamma(1, N/2, SSb/2) - 1/K
+      #chain[[9]][ii,,1] <- tau <- data$tau# 1 / rgamma(1, N/2, SSb/2) - 1/K
       #print(tau)
 
 #       ones <- rep(1, K)
 #       varinv <- diag(1/(rep(1,K) + tau.cand))
 #       var.gen.Z.cand <- (t(ones) %*% varinv) %*% ones
 #
-      var1 <- (1+tau.s0[1])
-      var1.cand <- (1+tau.cand)
-      lik.b <- (-N*K/2)*(2*pi*var1) -0.5 * sum(ZT2^2) / var1
-      lik.b.cand <- (-N*K/2)*(2*pi*var1.cand) -0.5 * sum(ZT2^2) / var1.cand
-
-      browser()
-      print(lik.b)
-      print(lik.b.cand)
-      u <- runif (1, 0, 1)
-      ar <- exp(lik.b.cand - lik.b)
-#print(ar)
-#browser()
-
-      if (u <= ar) {
-        cat("Accept tau: ", tau.cand, "\n")
-        chain[[9]][ii,,1] <- tau <- tau.cand
-      }
-      else {
-        #print("Reject")
-        chain[[9]][ii,,1] <- tau <- tau.s0[1]
-      }
-print(tau)
+#       var1 <- (1+tau.s0[1])
+#       var1.cand <- (1+tau.cand)
+#       lik.b <- (-N*K/2)*(2*pi*var1) -0.5 * sum(ZT2^2) / var1
+#       lik.b.cand <- (-N*K/2)*(2*pi*var1.cand) -0.5 * sum(ZT2^2) / var1.cand
+#
+#       browser()
+#       print(lik.b)
+#       print(lik.b.cand)
+#       u <- runif (1, 0, 1)
+#       ar <- exp(lik.b.cand - lik.b)
+# #print(ar)
+# #browser()
+#
+#       if (u <= ar) {
+#         cat("Accept tau: ", tau.cand, "\n")
+#         chain[[9]][ii,,1] <- tau <- tau.cand
+#       }
+#       else {
+#         #print("Reject")
+#         chain[[9]][ii,,1] <- tau <- tau.s0[1]
+#       }
+# print(tau)
 
 
       ## For each group
@@ -578,9 +714,10 @@ print(tau)
       SSb <- sum((mean.person - mean(errors))^2)
 
       #print(mean(1 / rgamma(10000, N/2, SSb/2) - sig2/K))
+      delta.cand <- 1 / rgamma(1, N/2, SSb/2) - sig2/K
 
       # Draw covariance parameter
-      chain[[10]][ii,,1] <- delta <- data$delta# 1 / rgamma(1, N/2, SSb/2) - sig2/K
+      #chain[[10]][ii,,1] <- delta <- data$delta# 1 / rgamma(1, N/2, SSb/2) - sig2/K
 
       ## For each group
       for(gg in 1:G) {
@@ -612,9 +749,33 @@ print(tau)
 
 
 
-      if ((!silent) && (ii%%100 == 0)) {
-        cat("Iteration ", ii, " ", "\n")
+      if ((!silent) && (ii%%100 == 0))
+        cat("Iteration ", ii, " | MH acceptance rate ", mh.accept/ii, "\n")
+
+      if((ii%%100 == 0) && ((mh.accept/ii) < 0.1)) {
+        ZT2 <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
+        ZT2.cand <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
+        mu_ZT2 <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
+        mu_ZT <- mu_ZT.cand <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
+        Sigma_ZT <- toeplitz((runif(5, 1, 5))/5) #matrix(1, ncol = K, nrow = K)
+        Z <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
+        tau.cand <- runif(1,0,1)
+        delta.cand <- runif(1,0,1)
+        nu.cand <- runif(K,-0.3,0.3)
+
+        chain[[1]][1, ] <- rnorm(K, 0, 1)
+        chain[[2]][1, ] <- rnorm(K, 5, 1)
+        chain[[9]][1,,] <- runif(2,0,1)
+        chain[[10]][1,,] <- runif(2,0,1)
+        chain[[17]][1, ] <- runif(K,-0.3,0.3)
+
+        mh.accept <- 0
+
+        ii <- 1
       }
+
+      ii <- ii + 1
+
       flush.console()
     }
 
@@ -750,5 +911,5 @@ print(tau)
   post.zeta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
 
   return(list(beta = post.beta, lambda = post.lambda, theta = post.theta, zeta = post.zeta, sig2k = post.sig2k, sig2 = post.sig2,
-              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu = post.nu, sd.nu = sd.nu, mce.nu = mce.nu, ZT = ZT, ZT2 = ZT2))
+              tau = post.tau, delta = post.delta, theta_i = post.theta_i, zeta_i = post.zeta_i, nu = post.nu, sd.nu = sd.nu, mce.nu = mce.nu, ZT2 = ZT2))
 }
