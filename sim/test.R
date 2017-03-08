@@ -196,9 +196,9 @@ summary(out2$lambda - dat2$lambda)
 #out4 <- MALNIRT3(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
 #dat4 <- simdataLNIRT2(N = 1000, K = 5, delta = 0.2, tau = 0.3, nu = seq(-0.2, 0.2, length.out = 5))
 #dat4 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.2,0), tau = c(0.15,0), nu = seq(-0.25, 0.25, length.out = 10))
-dat4 <- simdataLNIRT(N = 200, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.2,20))
+dat4 <- simdataLNIRT(N = 500, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.25,20))
 
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 5000, est.person = FALSE)
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 2000, est.person = FALSE)
 summary(out5$nu - dat4$nu)
 plot(out5$nu - dat4$nu)
 out5$tau
@@ -208,6 +208,32 @@ out5$sd.nu
 out5$mce.nu
 summary(out5$beta - dat4$beta)
 summary(out5$lambda - dat4$lambda)
+summary(out5$sig2k - dat4$sig2k)
+
+#out52 <- MALNIRT.noMH(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
+out52 <- MALNIRT.1StepZT2(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
+summary(out52$nu - dat4$nu)
+plot(out52$nu - dat4$nu)
+out52$tau
+out52$delta
+out52$nu
+out52$sd.nu
+out52$mce.nu
+summary(out52$beta - dat4$beta)
+summary(out52$lambda - dat4$lambda)
+summary(out52$sig2k - dat4$sig2k)
+
+plot(1:1000, out52$data.chain1$nu, type = "l", col = "red", main = "nu_1",
+     xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
+lines(1:1000, out52$data.chain2$nu, col = "blue")
+
+plot(1:1000, out52$data.chain1$tau.1, type = "l", col = "red", main = "tau",
+     xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
+lines(1:1000, out52$data.chain2$tau.1, col = "blue")
+
+plot(1:1000, out52$data.chain1$delta.1, type = "l", col = "red", main = "delta",
+     xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
+lines(1:1000, out52$data.chain2$delta.1, col = "blue")
 
 
 
@@ -218,6 +244,8 @@ summary(out6$sig2k[,1] - dat4$sig2k)
 
 out7 <- MAIRT(Y = Y, data = dat4, est.person = FALSE)
 out7$tau
+
+diag(cov(dat4$RT, out7$Z))
 
 summary(out4$nu - dat4$nu)
 summary(out4$beta - dat4$beta)

@@ -347,5 +347,5 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
   chain.2 <- chains.list[[2]]
   post.theta_i <- colMeans((chain.1[[6]][XG.burnin:XG,,] + chain.2[[6]][XG.burnin:XG,,]) / 2)
 
-  return(list(beta = post.beta, theta = post.theta, sig2k = post.sig2k, sig2 = post.sig2, tau = post.tau, theta_i = post.theta_i))
+  return(list(beta = post.beta, theta = post.theta, sig2k = post.sig2k, sig2 = post.sig2, tau = post.tau, theta_i = post.theta_i, Z = Z))
 }
