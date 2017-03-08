@@ -221,11 +221,11 @@ out52$sd.nu
 out52$mce.nu
 summary(out52$beta - dat4$beta)
 summary(out52$lambda - dat4$lambda)
-summary(out52$sig2k - dat4$sig2k)
+summary(out52$sig2k[,1] - dat4$sig2k)
 
-plot(1:1000, out52$data.chain1$nu, type = "l", col = "red", main = "nu_1",
+plot(1:1000, out52$data.chain1$nu.1, type = "l", col = "red", main = "nu_1",
      xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
-lines(1:1000, out52$data.chain2$nu, col = "blue")
+lines(1:1000, out52$data.chain2$nu.1, col = "blue")
 
 plot(1:1000, out52$data.chain1$tau.1, type = "l", col = "red", main = "tau",
      xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
@@ -235,7 +235,13 @@ plot(1:1000, out52$data.chain1$delta.1, type = "l", col = "red", main = "delta",
      xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
 lines(1:1000, out52$data.chain2$delta.1, col = "blue")
 
+plot(1:1000, out52$data.chain1$sig2.1, type = "l", col = "red", main = "sig2",
+     xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
+lines(1:1000, out52$data.chain2$sig2.1, col = "blue")
 
+plot(1:1000, out52$data.chain1$sig2k.1, type = "l", col = "red", main = "sig2_1",
+     xlab = "", ylab = "", xaxt="n", frame.plot=F, cex.axis=1.1)
+lines(1:1000, out52$data.chain2$sig2k.1, col = "blue")
 
 #dat6 <- simdataLNRT(1000, 10, c(0.2,0))
 out6 <- MALNRT(RT = RT, data = dat4, est.person = FALSE)

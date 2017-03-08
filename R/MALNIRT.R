@@ -670,7 +670,6 @@ MALNIRT <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1
       chain[[7]][ii,,1] <- sig2k <- data$sig2k# (1 / rgamma(K, a.sig2 + (N*(K-1)/K)/2, b.sig2 + SSwk/2))
       this.sig2k <- sig2k #<- data.lnirt$sig2k.lnrt
 
-
       ### Sample covariance parameter
 
       # Helmert transformation

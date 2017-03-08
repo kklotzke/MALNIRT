@@ -196,6 +196,7 @@ MALNRT <- function(RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = N
       chain[[3]][ii,,1] <- sig2k <- 1 / rgamma(K, a.sig2 + (N*(K-1)/K)/2, b.sig2 + SSwk/2)# - delta.min1
 
 
+
       ### Sample covariance parameter
 
       # Helmert transformation
