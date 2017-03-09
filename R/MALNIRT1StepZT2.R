@@ -577,14 +577,14 @@ MALNIRT.1StepZT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10
       var0.beta <- 10^10
 
       ones <- rep(1, K)
-      varinv <- diag(1/(rep(1,K) + tau))
+      varinv <- diag(1/(rep(1,K) + tau.cand))
       var.gen.mar <- (t(ones) %*% varinv) %*% ones
       var.beta.mar <- 1/(N*(var.gen.mar) + 1/var0.beta)
       mu.beta.mar <- var.beta.mar*((N*(- colMeans(Z)))*(var.gen.mar) + mu0.beta/var0.beta)
       beta.mar <- rnorm(K, mu.beta.mar, sqrt(var.beta.mar))
 
-      Sjc <- matrix(tau / (1 + (K - 1) * tau), ncol = 1, nrow = K - 1)
-      var.Z.mar <- (1 + K * tau)/(1 + (K - 1) * tau)
+      Sjc <- matrix(tau.cand / (1 + (K - 1) * tau.cand), ncol = 1, nrow = K - 1)
+      var.Z.mar <- (1 + K * tau.cand)/(1 + (K - 1) * tau.cand)
       theta1 <- matrix(0, ncol = K - 1, nrow = N)
       #beta <- data$beta
       for (kk in 1:K){
@@ -746,10 +746,10 @@ MALNIRT.1StepZT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10
         cat("Iteration ", ii, " | MH acceptance rate ", mh.accept/ii, "\n")
 
       if(((ii%%100 == 0) && ((mh.accept/ii) < 0.1)) || reset) {
-        ZT2 <- data$Z + rnorm(N*K, 0, 0.5)# Z# <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
+        ZT2 <- matrix(beta.mar, nrow = N, ncol = K, byrow = TRUE) #+ rnorm(N*K, 0, 0.2) #data$Z + rnorm(N*K, 0, 0.5)# Z# <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
         #ZT2.cand <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N) # Zk|Z.mink, T1..p
-        mu_ZT2 <- matrix(data$beta + rnorm(K, 0, 0.5), nrow = N, ncol = K, byrow = TRUE) #matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
-        mu_ZT <- mu_ZT2 + rnorm(N*K, 0, 0.5)# <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
+        mu_ZT2 <- matrix(beta.mar, nrow = N, ncol = K, byrow = TRUE) #matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
+        mu_ZT <- mu_ZT2 #+ rnorm(N*K, 0, 0.2)# <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
         Sigma_ZT <- Sigma_Z #toeplitz((runif(5, 1, 5))/5) #matrix(1, ncol = K, nrow = K)
         #Z <- matrix(rnorm(N*K, 0, 1), ncol = K, nrow = N)
         #tau.cand <- runif(1,0,1)
@@ -759,26 +759,26 @@ MALNIRT.1StepZT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10
         #SSb.delta <- runif(1, 1, 100)
 
         if(reset) {
-          chain[[1]][ii-1, ] <- data$beta + rnorm(K, 0, 0.5) #rnorm(K, 0, 1)
+          chain[[1]][ii-1, ] <- beta.mar #data$beta + rnorm(K, 0, 0.5) #rnorm(K, 0, 1)
           #chain[[2]][1, ] <- rnorm(K, 5, 1)
-          chain[[7]][ii-1,,1] <- sig2k <- data$sig2k #sig2k.cand
+          chain[[7]][ii-1,,1] <- sig2k <- sig2k.cand
           chain[[8]][ii-1,,1] <- sig2 <- mean(sig2k) #sig2.cand
           chain[[9]][ii-1,,] <- rep(tau.cand, 2) #runif(2,0,1)
           chain[[10]][ii-1,,] <- rep(delta.cand, 2) #runif(2,0,1)
-          chain[[17]][ii-1, ] <- data$nu + rnorm(K, 0, 0.3) #nu.cand #runif(K,-0.3,0.3)
+          chain[[17]][ii-1, ] <- diag(cov(RT, Z)) #nu.cand #data$nu + rnorm(K, 0, 0.3) #nu.cand #runif(K,-0.3,0.3)
           tau <- tau.cand
           delta <- delta.cand
 
           ii <- ii - 1
         }
         else {
-          chain[[1]][1, ] <- data$beta + rnorm(K, 0, 0.5) #rnorm(K, 0, 1)
+          chain[[1]][1, ] <- beta.mar #data$beta + rnorm(K, 0, 0.5) #rnorm(K, 0, 1)
           #chain[[2]][1, ] <- rnorm(K, 5, 1)
           chain[[7]][1,,1] <- sig2k <- sig2k.cand
           chain[[8]][1,,1] <- sig2 <- sig2.cand
           chain[[9]][1,,] <- rep(tau.cand, 2) #runif(2,0,1)
           chain[[10]][1,,] <- rep(delta.cand, 2) #runif(2,0,1)
-          chain[[17]][1, ] <- data$nu + rnorm(K, 0, 0.3) #nu.cand #runif(K,-0.3,0.3)
+          chain[[17]][1, ] <- diag(cov(RT, Z)) # data$nu + rnorm(K, 0, 0.3) #nu.cand #runif(K,-0.3,0.3)
           tau <- tau.cand
           delta <- delta.cand
 
