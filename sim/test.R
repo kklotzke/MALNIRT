@@ -196,7 +196,7 @@ summary(out2$lambda - dat2$lambda)
 #out4 <- MALNIRT3(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
 #dat4 <- simdataLNIRT2(N = 1000, K = 5, delta = 0.2, tau = 0.3, nu = seq(-0.2, 0.2, length.out = 5))
 #dat4 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.2,0), tau = c(0.15,0), nu = seq(-0.25, 0.25, length.out = 10))
-dat4 <- simdataLNIRT(N = 250, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.25,20))
+dat4 <- simdataLNIRT(N = 500, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.25,20))
 
 out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 2000, est.person = FALSE)
 summary(out5$nu - dat4$nu)
