@@ -1,5 +1,3 @@
-#' @importFrom truncnorm rtruncnorm
-#' @importFrom invgamma dinvgamma
 #' @export
 MALNIRT.1StepZT2 <- function(Y, RT, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NULL, inits.2 = NULL, hyper.priors = NULL, est.person = FALSE, silent = FALSE) {
 

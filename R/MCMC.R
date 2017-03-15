@@ -66,13 +66,20 @@ sampleZ <- function(Y, Z, mu.Z, mu.ZT, partMatrix, likelihood = FALSE)
        return(NULL)
 
     # Sample Zk|Z.mink, T1..p
-    Z[Y[,k]==0, k] <- truncnorm::rtruncnorm(n = length(mu.Z[Y[, k]==0, k]), mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0)
-    Z[Y[,k]==1, k] <- truncnorm::rtruncnorm(n = length(mu.Z[Y[, k]==1, k]), mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf)
+    #Z[Y[,k]==0, k] <- truncnorm::rtruncnorm(n = length(mu.Z[Y[, k]==0, k]), mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0)
+    #Z[Y[,k]==1, k] <- truncnorm::rtruncnorm(n = length(mu.Z[Y[, k]==1, k]), mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf)
+    Z[Y[,k]==0, k] <- extraDistr::rtnorm(n = length(mu.Z[Y[, k]==0, k]), mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0)
+    Z[Y[,k]==1, k] <- extraDistr::rtnorm(n = length(mu.Z[Y[, k]==1, k]), mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf)
+
+    if(any(Z[Y[,k]==0, k] > 0) || any(Z[Y[,k]==1, k] < 0))
+      browser()
 
     # Compute probability density
     if(likelihood) {
-      lik0 <- sum(log(truncnorm::dtruncnorm(x = Z[Y[,k]==0, k], mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0)))
-      lik1 <- sum(log(truncnorm::dtruncnorm(x = Z[Y[,k]==1, k], mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf)))
+      #lik0 <- sum(log(truncnorm::dtruncnorm(x = Z[Y[,k]==0, k], mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0)))
+      #lik1 <- sum(log(truncnorm::dtruncnorm(x = Z[Y[,k]==1, k], mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf)))
+      lik0 <- sum(extraDistr::dtnorm(x = Z[Y[,k]==0, k], mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0, log = TRUE))
+      lik1 <- sum(extraDistr::dtnorm(x = Z[Y[,k]==1, k], mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf, log = TRUE))
       lik_k[k] <- lik0 + lik1
     }
 
@@ -149,7 +156,7 @@ sampleTheta <- function(Z, beta, tau)
   mu0.theta <- 0
 
   var.theta <- 1/(N*(var.gen) + 1/var0.theta)
-  mu.theta <- var.theta*((N*(mean(beta) + colMeans(Z)))*(var.gen) + mu0.theta/var0.theta)
+  mu.theta <- var.theta*((N*(mean(beta) + mean(Z)))*(var.gen) + mu0.theta/var0.theta)
 
   # Draw K item difficulty parameters
   theta <- rnorm(1, mu.theta, sqrt(var.theta))
@@ -174,7 +181,7 @@ sampleZeta <- function(RT, lambda, sig2k, delta)
   mu0.zeta <- 0
 
   var.zeta <- 1/(N*(var.gen) + 1/var0.zeta)
-  mu.zeta <- var.zeta*((N*(mean(lambda) - colMeans(RT)))*(var.gen) + mu0.zeta/var0.zeta)
+  mu.zeta <- var.zeta*((N*(mean(lambda) - mean(RT)))*(var.gen) + mu0.zeta/var0.zeta)
 
   # Draw K time intensity parameters
   zeta <- rnorm(1, mu.zeta, sqrt(var.zeta))
@@ -193,14 +200,18 @@ sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstG
   var.gen <- (t(ones) %*% varinv) %*% ones
 
   ### Sample item difficulty parameters ###
+  if (firstGroup) {
+    # Hyper parameters
+    SS <- b.beta + sum((beta.mar - mean(beta.mar))^2) + (K*n0.beta*mean(beta.mar))/(2*(K + n0.beta))
+    var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
+    mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.mar))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
-  # Hyper parameters
-  SS <- b.beta + sum((beta.mar - mean(beta.mar))^2) + (K*n0.beta*mean(beta.mar))/(2*(K + n0.beta))
-  var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
-  mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.mar))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
+    var.beta <- 1/(N*(var.gen) + 1/var0.beta)
+    mu.beta <- var.beta*((N*(mean(theta.mar) - colMeans(Z.mar)))*(var.gen) + mu0.beta/var0.beta)
 
-  var.beta <- 1/(N*(var.gen) + 1/var0.beta)
-  mu.beta <- var.beta*((N*(mean(theta.mar) - colMeans(Z.mar)))*(var.gen) + mu0.beta/var0.beta)
+    # Draw K time intensity parameters
+    beta.mar <- rnorm(K, mu.beta, sqrt(var.beta))
+  }
 
   ### Sample ability parameters group means ###
 
@@ -213,15 +224,13 @@ sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstG
     var0.theta <- 10^10
     mu0.theta <- 0
 
-    var.theta <- 1/(N.g/(var.gen) + 1/var0.theta)
+    var.theta <- 1/(N/(var.gen) + 1/var0.theta)
     mu.theta <- var.theta*((N*(mean(beta.mar) + mean(Z.mar)))/(var.gen) + mu0.theta/var0.theta)
 
     # Draw ability parameter group mean
     theta.mar <- rnorm(1, mu.theta, sqrt(var.theta))
   }
 
-  # Draw K time intensity parameters
-  beta.mar <- rnorm(K, mu.beta, sqrt(var.beta))
 
   ### Sample latent responses ###
 
@@ -242,7 +251,8 @@ sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstG
   SSb.tau <- sum((mean.person - mean(Z.mar))^2)
 
   # Draw covariance parameter
-  tau.mar <- 1 / rgamma(1, N/2, SSb.tau/2) - 1/K
+  #tau.mar <- 1 / rgamma(1, N/2, SSb.tau/2) - 1/K
+  tau.mar <- extraDistr::rinvgamma(1, N/2, SSb.tau/2) - 1/K
 
   return(list(Z.mar = Z.mar, beta.mar = beta.mar, theta.mar = theta.mar, tau.mar = tau.mar,
               q.tau = list(dist = "invgamma + 1/K", shape = N/2, rate = SSb.tau/2)))
@@ -264,10 +274,12 @@ sampleMarSpeedModel <- function(RT, lambda, zeta = 0, delta.mar, sig2k.mar, a.si
   SSwk.sig2k <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
 
   # Draw mean measurement error variance
-  sig2.mar <- ( 1 / rgamma(1, a.sig2 + (N*(K-1))/2, b.sig2 + SSw.sig2/2) )
+  #sig2.mar <- ( 1 / rgamma(1, a.sig2 + (N*(K-1))/2, b.sig2 + SSw.sig2/2) )
+  sig2.mar <- extraDistr::rinvgamma(1, a.sig2 + (N*(K-1))/2, b.sig2 + SSw.sig2/2)
 
   # Draw K individual measurement error variances
-  sig2k.mar <- (1 / rgamma(K, a.sig2 + (N*(K-1)/K)/2, b.sig2 + SSwk.sig2k/2))
+  #sig2k.mar <- (1 / rgamma(K, a.sig2 + (N*(K-1)/K)/2, b.sig2 + SSwk.sig2k/2))
+  sig2k.mar <- extraDistr::rinvgamma(K, a.sig2 + (N*(K-1)/K)/2, b.sig2 + SSwk.sig2k/2)
 
   ### Sample covariance parameter ###
 
@@ -276,7 +288,8 @@ sampleMarSpeedModel <- function(RT, lambda, zeta = 0, delta.mar, sig2k.mar, a.si
   SSb.delta <- sum((mean.person - mean(errors))^2)
 
   #print(mean(1 / rgamma(10000, N/2, SSb/2) - sig2/K))
-  delta.mar <- 1 / rgamma(1, N/2, SSb.delta/2) - sig2.mar/K
+  #delta.mar <- 1 / rgamma(1, N/2, SSb.delta/2) - sig2.mar/K
+  delta.mar <- extraDistr::rinvgamma(1, N/2, SSb.delta/2) - sig2.mar/K
 
   return(list(sig2.mar = sig2.mar, sig2k.mar = sig2k.mar, delta.mar = delta.mar,
               q.delta = list(dist = "invgamma + sig2/K", shape = N/2, rate = SSb.delta/2),

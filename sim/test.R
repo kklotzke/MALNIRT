@@ -1,3 +1,27 @@
+dat4.1 <- simdataLNIRT(N = 500, K = 20, delta = c(0.0,0), tau = c(0.05,0), nu = rep(-0.25,20))
+dat4.2 <- simdataLNIRT(N = 500, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.15,20), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = 0.5, zeta.offset = 0.5)
+dat4.3 <- simdataLNIRT(N = 500, K = 20, delta = c(0.15,0), tau = c(0.10,0), nu = rep(0,20), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = -0.5, zeta.offset = -0.5)
+group <- c(rep(1, 500), rep(2, 500), rep(3, 500))
+y.all <- rbind(dat4.1$Y, dat4.2$Y, dat4.3$Y)
+rt.all <- rbind(dat4.1$RT, dat4.2$RT, dat4.3$RT)
+
+out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 800, est.person = FALSE)
+summary(out4$post.means[[1]]$beta - dat4.1$beta)
+summary(out4$post.means[[1]]$lambda - dat4.1$lambda)
+c(out4$post.means[[1]]$theta, out4$post.means[[2]]$theta, out4$post.means[[3]]$theta)
+c(out4$post.means[[1]]$zeta, out4$post.means[[2]]$zeta, out4$post.means[[3]]$zeta)
+c(out4$post.means[[1]]$tau, out4$post.means[[2]]$tau, out4$post.means[[3]]$tau)
+c(out4$post.means[[1]]$delta, out4$post.means[[2]]$delta, out4$post.means[[3]]$delta)
+rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu, out4$post.means[[3]]$nu)
+rowMeans(rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu, out4$post.means[[3]]$nu))
+
+
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4.3, XG = 500, est.person = FALSE)
+summary(out5$post.means[[1]]$beta - dat4.1$beta)
+summary(out5$post.means[[1]]$lambda - dat4.1$lambda)
+
+
+
 #dat <- simMALNIRT(1000, 20, 1, 0, 0)
 #out <- MALNRT(RT1, Group = NULL, dat, XG = 1000, burnin = 0.15)
 #out$post.lambda; dat$ab[,4]
@@ -196,9 +220,10 @@ summary(out2$lambda - dat2$lambda)
 #out4 <- MALNIRT3(Y = Y, RT = RT, data = dat4, XG = 1000, est.person = FALSE)
 #dat4 <- simdataLNIRT2(N = 1000, K = 5, delta = 0.2, tau = 0.3, nu = seq(-0.2, 0.2, length.out = 5))
 #dat4 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.2,0), tau = c(0.15,0), nu = seq(-0.25, 0.25, length.out = 10))
-dat4 <- simdataLNIRT(N = 500, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.25,20))
 
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 2000, est.person = FALSE)
+
+
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 200, est.person = FALSE)
 summary(out5$nu - dat4$nu)
 plot(out5$nu - dat4$nu)
 out5$tau
