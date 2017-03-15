@@ -71,8 +71,8 @@ sampleZ <- function(Y, Z, mu.Z, mu.ZT, partMatrix, likelihood = FALSE)
     Z[Y[,k]==0, k] <- extraDistr::rtnorm(n = length(mu.Z[Y[, k]==0, k]), mean = mu.Z[Y[, k]==0, k], sd = sqrt(var.Z[k]), a = -Inf, b = 0)
     Z[Y[,k]==1, k] <- extraDistr::rtnorm(n = length(mu.Z[Y[, k]==1, k]), mean = mu.Z[Y[, k]==1, k], sd = sqrt(var.Z[k]), a = 0, b = Inf)
 
-    if(any(Z[Y[,k]==0, k] > 0) || any(Z[Y[,k]==1, k] < 0))
-      browser()
+    #if(any(Z[Y[,k]==0, k] > 0) || any(Z[Y[,k]==1, k] < 0))
+    #  browser()
 
     # Compute probability density
     if(likelihood) {
