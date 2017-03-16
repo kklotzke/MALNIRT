@@ -188,7 +188,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
   {
     I <- diag(e$K)
     J <- matrix(1, nrow = e$K, ncol = e$K)
-    a <- 1/e$delta.s0[1] + sum(1/e$sig2k.s0)
+    a <- 1/e$delta.s0 + sum(1/e$sig2k.s0)
     a.cand <- 1/e$param[[g]]$delta.cand + sum(1/e$param[[g]]$sig2k.cand)
 
     muZ <- e$theta - e$beta
@@ -196,10 +196,15 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     # Conditional mean of Z|T for each item
     x <- x.cand <- mu.ZT <- mu.ZT.cand <- matrix(NA, ncol = K, nrow = Ng)
+    #x <- t((diag(1/e$sig2k.s0) - ((1/e$sig2k.s0) %*% t(1/e$sig2k.s0))/a) %*% t(e$RTg[[g]]))
+    #x.cand <- t((diag(1/e$param[[g]]$sig2k.cand) - ((1/e$param[[g]]$sig2k.cand) %*% t(1/e$param[[g]]$sig2k.cand))/a.cand) %*% t(e$RTg[[g]]))
+
     for (k in 1:K)
     {
-      x[, k] <- (1/e$sig2k.s0[k]) * ((e$RTg[[g]][, k] - muT[k]) - (e$RTg[[g]][, k] - muT[k]) / (a * e$sig2k.s0[k]))
-      x.cand[, k] <- (1/e$param[[g]]$sig2k.cand[k]) * ((e$RTg[[g]][, k] - muT[k]) - (e$RTg[[g]][, k] - muT[k]) / (a.cand * e$param[[g]]$sig2k.cand[k]))
+      #x[, k] <- (1/e$sig2k.s0[k]) * ((e$RTg[[g]][, k] - muT[k]) - (e$RTg[[g]][, k] - muT[k]) / (a * e$sig2k.s0[k]))
+      #x.cand[, k] <- (1/e$param[[g]]$sig2k.cand[k]) * ((e$RTg[[g]][, k] - muT[k]) - (e$RTg[[g]][, k] - muT[k]) / (a.cand * e$param[[g]]$sig2k.cand[k]))
+      x[, k] <- t( (1/e$sig2k.s0[k]) * ( t(e$RTg[[g]][, k] - muT[k]) - (t(1/e$sig2k.s0) %*% (t(e$RTg[[g]]) - matrix(muT, nrow = K, ncol = Ng))) / a ) )
+      x.cand[, k] <- t( (1/e$param[[g]]$sig2k.cand[k]) * ( t(e$RTg[[g]][, k] - muT[k]) - (t(1/e$param[[g]]$sig2k.cand) %*% (t(e$RTg[[g]]) - matrix(muT, nrow = K, ncol = Ng))) / a.cand ) )
 
       mu.ZT[, k] <- muZ[k] + e$nu.s0[k] * x[, k]
       mu.ZT.cand[, k] <- muZ[k] + e$param[[g]]$nu.cand[k] * x.cand[, k]
@@ -300,6 +305,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         e$param[[g]]$x <- x.cand
 
         e$mh.accept[g] <- e$mh.accept[g] + 1
+        e$mh.accept.last[g] <- e$mh.accept.last[g] + 1
       }
       else {
         #print("Reject tau")
@@ -337,6 +343,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     chain <- chains[[c]] # Read the cc-th chain
     mh.accept <- numeric(G) # MH acceptance rate
+    mh.accept.last <- numeric(G) # MH acceptance rate last 100 iterations
 
     xg <- 2
     while (xg <= XG) {
@@ -441,23 +448,24 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
           reset <- TRUE
           e$initMar(e)
           e$initChains(reinit = TRUE, which = c, e)
-          e$mh.accept <- numeric(G)
+          e$mh.accept <- e$mh.accept.last <- numeric(G)
           xg <- 2
         }
 
         g <- g + 1
       }
 
-      if(any(mh.accept/xg < 0.15) && (xg%%100 == 0) && !reset) {
+      if((any(mh.accept/xg < 0.25) || any(mh.accept.last/100 < 0.05)) && (xg%%100 == 0) && !reset) {
         reset <- TRUE
         e$initMar(e)
         e$initChains(reinit = TRUE, which = c, e)
-        e$mh.accept <- numeric(G)
+        e$mh.accept <- e$mh.accept.last <- numeric(G)
         xg <- 2
       }
 
       if ((!silent) && (xg%%100 == 0) && !reset) {
-        cat("Iteration ", xg, " | MH acceptance rate ", round(mh.accept/xg, digits=2), "\n")
+        cat("Iteration ", xg, " | MH acceptance rate ", round(mh.accept/xg, digits=2), " | ", round(mh.accept.last/100, digits=2), "\n")
+        e$mh.accept.last <- numeric(G)
       }
 
       if(!reset) {
@@ -524,5 +532,6 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     g <- g + 1
   }
 
+  print(param[[1]]$beta.mar)
   return(list(post.means = post.means, samples = samples, XG.burnin = XG.burnin))
 }

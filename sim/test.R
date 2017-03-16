@@ -1,4 +1,4 @@
-dat4.1 <- simdataLNIRT(N = 500, K = 20, delta = c(0.0,0), tau = c(0.05,0), nu = rep(-0.25,20))
+dat4.1 <- simdataLNIRT(N = 2000, K = 10, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.20,10))
 dat4.2 <- simdataLNIRT(N = 500, K = 20, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.15,20), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = 0.5, zeta.offset = 0.5)
 dat4.3 <- simdataLNIRT(N = 500, K = 20, delta = c(0.15,0), tau = c(0.10,0), nu = rep(0,20), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = -0.5, zeta.offset = -0.5)
 group <- c(rep(1, 500), rep(2, 500), rep(3, 500))
@@ -16,10 +16,20 @@ rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu, out4$post.means[[3]]$nu)
 rowMeans(rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu, out4$post.means[[3]]$nu))
 
 
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4.3, XG = 500, est.person = FALSE)
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4.1, XG = 1000, est.person = FALSE)
 summary(out5$post.means[[1]]$beta - dat4.1$beta)
 summary(out5$post.means[[1]]$lambda - dat4.1$lambda)
+summary(out5$post.means[[1]]$nu - dat4.1$nu)
+summary(out5$post.means[[1]]$sig2k - dat4.1$sig2k)
+out5$post.means[[1]]$tau
+out5$post.means[[1]]$delta
 
+
+
+plot(1:2000, out5$samples[[1]]$nu.11, type = "l")
+plot(1:2000, out5$samples[[1]]$nu.2, type = "l")
+plot(1:2000, out5$samples[[1]]$sig2k.1, type = "l")
+plot(1:2000, out5$samples[[1]]$sig2k.2, type = "l")
 
 
 #dat <- simMALNIRT(1000, 20, 1, 0, 0)

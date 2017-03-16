@@ -318,6 +318,13 @@ sampleCorrelationNu <- function(r, x, var.Z)
     mu.b[k] <- (var.b[k] * (mu0.b/var0.b + tmp2[k]))
     nu[k] <- rnorm(1, mean = mu.b[k], sd = sqrt(var.b[k]))
   }
+#browser()
+#print(mu.b[1:3])
+#print(var.b[1:3])
+#print(mean(diag(cov(r,x))))
+  #print(var.Z)
+
+  #print(mean(nu))
 
   return(list(nu = nu,  q.nu = list(dist = "rnorm", mu = mu.b, sd = sqrt(var.b))))
 }
