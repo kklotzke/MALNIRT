@@ -154,6 +154,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     ### Sample proposal for tau from marginalized ability model ###
     out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z.mar, beta.mar = e$param[[g]]$beta.mar,
                                     theta.mar = e$param[[g]]$theta.mar, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup)
+    #out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z, beta.mar = e$beta,
+    #                                theta.mar = e$theta, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup, init = FALSE)
     e$param[[g]]$Z.mar <- out.ab$Z.mar
     e$param[[g]]$beta.mar <- out.ab$beta.mar
     e$param[[g]]$theta.mar <- out.ab$theta.mar
@@ -437,9 +439,13 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
       ########################################### Metropolis-Hastings ############################################
 
         out.mh <- e$doMH(e)
-        while (!out.mh$reset && !out.mh$validProposals) {
+        reinit.count <- 0
+        while (!out.mh$reset && !out.mh$validProposals && (reinit.count <= 1000)) {
           e$sampleProposals(reinit = TRUE, g = g, e = e)
           out.mh <- e$doMH(e)
+          reinit.count <- reinit.count + 1
+          #if (reinit.count == 1000)
+          #  reset <- TRUE
         }
 
       ############################################################################################################
@@ -532,6 +538,6 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     g <- g + 1
   }
 
-  print(param[[1]]$beta.mar)
+  #print(param[[1]]$beta.mar)
   return(list(post.means = post.means, samples = samples, XG.burnin = XG.burnin))
 }

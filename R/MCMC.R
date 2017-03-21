@@ -93,9 +93,10 @@ sampleBeta <- function(Z, beta, theta = 0, tau, a.beta = 0.5, b.beta = 0.5, n0.b
   K <- ncol(Z)
   N <- nrow(Z)
 
-  ones <- rep(1, K)
-  varinv <- diag(1/(rep(1, K) + tau))
-  var.gen <- (t(ones) %*% varinv) %*% ones
+  #ones <- rep(1, K)
+  #varinv <- diag(1/(rep(1, K) + tau))
+  #var.gen <- (t(ones) %*% varinv) %*% ones
+  var.gen <- rep(1/(1 + tau), K)
 
   ### Sample item difficulty paramaters ###
 
@@ -119,9 +120,10 @@ sampleLambda <- function(RT, lambda, zeta = 0, sig2k, delta, a.lambda = 0.5, b.l
   K <- ncol(RT)
   N <- nrow(RT)
 
-  ones <- rep(1, K)
-  varinv <- diag(1/(sig2k[1:K] + delta))
-  var.gen <- (t(ones) %*% varinv) %*% ones
+  #ones <- rep(1, K)
+  #varinv <- diag(1/(sig2k[1:K] + delta))
+  #var.gen <- (t(ones) %*% varinv) %*% ones
+  var.gen <- 1/(sig2k[1:K] + delta)
 
   ### Sample item time intensity paramaters ###
 
@@ -145,9 +147,11 @@ sampleTheta <- function(Z, beta, tau)
   K <- ncol(Z)
   N <- nrow(Z)
 
-  ones <- rep(1, K)
-  varinv <- diag(1/(rep(1, K) + tau))
-  var.gen <- (t(ones) %*% varinv) %*% ones
+  #ones <- rep(1, K)
+  #varinv <- diag(1/(rep(1, K) + tau))
+  #var.gen <- (t(ones) %*% varinv) %*% ones
+  var.gen <- 1/((1 + K * tau) / K) #sum(rep(1/(1 + tau), K))
+
 
   ### Sample group ability parameter ###
 
@@ -170,9 +174,13 @@ sampleZeta <- function(RT, lambda, sig2k, delta)
   K <- ncol(RT)
   N <- nrow(RT)
 
-  ones <- rep(1, K)
-  varinv <- diag(1/(sig2k[1:K] + delta))
-  var.gen <- (t(ones) %*% varinv) %*% ones
+  #ones <- rep(1, K)
+  #varinv <- diag(1/(sig2k[1:K] + delta))
+  #var.gen <- (t(ones) %*% varinv) %*% ones
+  #var.gen <- sum(1/(sig2k[1:K]/K^2 + delta/K))
+  var.gen <- 1/(sum(sig2k[1:K]/K^2 + delta/K))
+  #print(var.gen)
+
 
   ### Sample group speed parameter ###
 
@@ -190,60 +198,74 @@ sampleZeta <- function(RT, lambda, sig2k, delta)
 }
 
 #' @export
-sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstGroup = TRUE, a.beta = 0.5, b.beta = 0.5, n0.beta = 1)
+sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstGroup = TRUE, init = TRUE, a.beta = 0.5, b.beta = 0.5, n0.beta = 1)
 {
   K <- ncol(Z.mar)
   N <- nrow(Z.mar)
 
-  ones <- rep(1, K)
-  varinv <- diag(1/(rep(1, K) + tau.mar))
-  var.gen <- (t(ones) %*% varinv) %*% ones
+  #ones <- rep(1, K)
+  #varinv <- diag(1/(rep(1, K) + tau.mar))
+  #var.gen <- (t(ones) %*% varinv) %*% ones
+  var.gen <- rep(1/(1 + tau.mar), K)
 
-  ### Sample item difficulty parameters ###
-  if (firstGroup) {
-    # Hyper parameters
-    SS <- b.beta + sum((beta.mar - mean(beta.mar))^2) + (K*n0.beta*mean(beta.mar))/(2*(K + n0.beta))
-    var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
-    mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.mar))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
+  if(init) {
 
-    var.beta <- 1/(N*(var.gen) + 1/var0.beta)
-    mu.beta <- var.beta*((N*(mean(theta.mar) - colMeans(Z.mar)))*(var.gen) + mu0.beta/var0.beta)
+    ### Sample item difficulty parameters ###
 
-    # Draw K time intensity parameters
-    beta.mar <- rnorm(K, mu.beta, sqrt(var.beta))
-  }
+    if (firstGroup) {
+      # Hyper parameters
+      SS <- b.beta + sum((beta.mar - mean(beta.mar))^2) + (K*n0.beta*mean(beta.mar))/(2*(K + n0.beta))
+      var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
+      mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.mar))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
-  ### Sample ability parameters group means ###
+      var.beta <- 1/(N*(var.gen) + 1/var0.beta)
+      mu.beta <- var.beta*((N*(mean(theta.mar) - colMeans(Z.mar)))*(var.gen) + mu0.beta/var0.beta)
 
-  if(firstGroup) {
-    theta.mar <- 0 # First group
-  }
-  else {
-    # Hyper parameters
-    #flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
-    var0.theta <- 10^10
-    mu0.theta <- 0
-
-    var.theta <- 1/(N/(var.gen) + 1/var0.theta)
-    mu.theta <- var.theta*((N*(mean(beta.mar) + mean(Z.mar)))/(var.gen) + mu0.theta/var0.theta)
-
-    # Draw ability parameter group mean
-    theta.mar <- rnorm(1, mu.theta, sqrt(var.theta))
+      # Draw K time intensity parameters
+      beta.mar <- rnorm(K, mu.beta, sqrt(var.beta))
+    }
   }
 
 
-  ### Sample latent responses ###
+  if(init) {
 
-  Sjc <- matrix(tau.mar / (1 + (K - 1) * tau.mar), ncol = 1, nrow = K - 1)
-  var.Z.mar <- (1 + K * tau.mar)/(1 + (K - 1) * tau.mar)
-  theta1 <- matrix(theta.mar, ncol = K - 1, nrow = N)
-  for (kk in 1:K){
-    beta1 <- beta.mar[-kk]
-    Z1 <- Z.mar[, -kk] # Latent responses to all but the current item
-    mu.Z.mar <- (- beta.mar[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
-    Z.mar[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z.mar, sqrt(var.Z.mar))), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 0]
-    Z.mar[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z.mar, sqrt(var.Z.mar)),1), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 1]
+    ### Sample ability parameters group means ###
+
+    if(firstGroup) {
+      theta.mar <- 0 # First group
+    }
+    else {
+      var.gen <- 1/((1 + K * tau.mar) / K) #sum(rep(1/(1 + tau), K))
+
+      # Hyper parameters
+      #flat prior can be approximated by vague normal density prior with mean = 0 and variance = 10^10
+      var0.theta <- 10^10
+      mu0.theta <- 0
+
+      var.theta <- 1/(N/(var.gen) + 1/var0.theta)
+      mu.theta <- var.theta*((N*(mean(beta.mar) + mean(Z.mar)))/(var.gen) + mu0.theta/var0.theta)
+
+      # Draw ability parameter group mean
+      theta.mar <- rnorm(1, mu.theta, sqrt(var.theta))
+    }
   }
+
+
+  #if(init) {
+
+    ### Sample latent responses ###
+
+    Sjc <- matrix(tau.mar / (1 + (K - 1) * tau.mar), ncol = 1, nrow = K - 1)
+    var.Z.mar <- (1 + K * tau.mar)/(1 + (K - 1) * tau.mar)
+    theta1 <- matrix(theta.mar, ncol = K - 1, nrow = N)
+    for (kk in 1:K){
+      beta1 <- beta.mar[-kk]
+      Z1 <- Z.mar[, -kk] # Latent responses to all but the current item
+      mu.Z.mar <- (- beta.mar[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
+      Z.mar[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z.mar, sqrt(var.Z.mar))), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 0]
+      Z.mar[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z.mar, sqrt(var.Z.mar)),1), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 1]
+    }
+  #}
 
   ### Sample covariance tau ###
 

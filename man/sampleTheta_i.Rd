@@ -9,4 +9,3 @@ sampleTheta_i(Z.g, beta, tau.g, theta_i.min1)
 \description{
 Sample person ability parameter
 }
-
