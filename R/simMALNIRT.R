@@ -2,6 +2,7 @@
 #library(mvtnorm)
 
 #' @importFrom mvtnorm rmvnorm
+#' @importFrom MASS mvrnorm
 #' @export
 simdataLNRT <- function(N, K, delta, lambda, zeta.offset = 0){
 
@@ -79,10 +80,19 @@ simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, th
   lower <- cbind(Sigma.nu, Sigma.lnrt)
   Sigma <-rbind(upper, lower)
 
-  # LNRT
-  if(missing(lambda)) {
-    lambda <- rnorm(K, mean=5, sd=1)
+
+  # Item parameters
+  if(missing(beta) && missing(lambda)) {
+    #item.param <- mvtnorm::rmvnorm(K, mean=c(0, 5), sigma=matrix(c(1,0,0,1), nrow = 2, ncol = 2))
+    item.param <- MASS::mvrnorm(K, mu=c(0, 5), Sigma=matrix(c(1,0,0,1), nrow = 2, ncol = 2), empirical = TRUE)
+    beta <- item.param[,1]
+    lambda <- item.param[, 2]
+
+    #beta <- rnorm(K, mean = 0, sd = 1)
+    #lambda <- rnorm(K, mean=5, sd=1)
   }
+
+  # LNRT
   if (delta[2] == 0)
     sd = 0
   else
@@ -91,9 +101,6 @@ simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, th
   zeta <- zeta - mean(zeta) + zeta.offset
 
   # IRT
-  if(missing(beta)) {
-    beta <- rnorm(K, mean = 0, sd = 1)
-  }
   if (tau[2] == 0)
     sd = 0
   else
@@ -124,7 +131,7 @@ simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, th
     #RT_i <- mvtnorm::rmvnorm(1, mean=means.lnrt, sigma=Sigma.lnrt)
     #RTZ[ii, ] <- cbind(Z_i, RT_i)
     RTZ[ii,]	<- mvtnorm::rmvnorm(1, mean=means, sigma=Sigma) #nr replications
-    #RTZ[ii,]	<- mvrnorm(1, mu=as.numeric(means), Sigma=Sigma, empirical = TRUE) #nr replications
+    #RTZ[ii,]	<- MASS::mvrnorm(1, mu=as.numeric(means), Sigma=Sigma, empirical = FALSE) #nr replications
     #RT[ii,]	<- mvrnorm(1,mu=as.vector(lambda - zeta[ii]),Sigma=Sigma, empirical=FALSE) #nr replications
   }
 

@@ -38,6 +38,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     param[[g]]$Z.mar <- matrix(0, ncol = K, nrow = Ng)
     param[[g]]$beta.mar <- numeric(K)
     param[[g]]$theta.mar <- 0
+    param[[g]]$lambda.mar <- numeric(K)
+    param[[g]]$zeta.mar <- 0
     param[[g]]$Z <- matrix(0, ncol = K, nrow = Ng)
     param[[g]]$mu.Z <- matrix(0, ncol = K, nrow = Ng)
     param[[g]]$var.Z <- numeric(K) + 0.01
@@ -86,6 +88,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
   # Run the marginalized ability model to obtain sane starting values for the joint-model
   initMar <- function(e) {
 
+    #cat("#### Initialize marginalized models #### \n")
+
     firstGroup <- TRUE
     for (g in 1:e$G) {
       if(g > 1)
@@ -96,10 +100,18 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         if(firstGroup) {
           out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z.mar, beta.mar = e$param[[g]]$beta.mar,
                                           theta.mar = e$param[[g]]$theta.mar, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup)
+          out.sp <- sampleMarSpeedModel(RT = e$RTg[[g]], lambda = e$param[[g]]$lambda.mar, zeta = e$param[[g]]$zeta.mar,
+                                        delta.mar = e$param[[g]]$delta.cand, sig2k.mar = e$param[[g]]$sig2k.cand)
+          lambda.mar <- sampleLambda(RT = e$RTg[[g]], lambda = e$param[[g]]$lambda.mar, zeta = e$param[[g]]$zeta.mar,
+                                     sig2k = out.sp$sig2k.mar, delta = out.sp$delta.mar)
+          zeta.mar <- 0
         }
         else {
           out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z.mar, beta.mar = e$param[[1]]$beta.mar,
                                           theta.mar = e$param[[g]]$theta.mar, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup) # Use beta's of first group, where theta = 0
+          out.sp <- sampleMarSpeedModel(RT = e$RTg[[g]], lambda = e$param[[1]]$lambda.mar, zeta = e$param[[g]]$zeta.mar,
+                                        delta.mar = e$param[[g]]$delta.cand, sig2k.mar = e$param[[g]]$sig2k.cand)
+          zeta.mar <- sampleZeta(RT = e$RTg[[g]], lambda = e$param[[1]]$lambda.mar, sig2k = e$param[[g]]$sig2k.cand, delta = e$param[[g]]$delta.cand)
         }
 
         e$param[[g]]$Z.mar <- out.ab$Z.mar
@@ -107,43 +119,61 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         e$param[[g]]$theta.mar <- out.ab$theta.mar
         e$param[[g]]$tau.cand <- out.ab$tau.mar
         e$param[[g]]$q.tau <- out.ab$q.tau
+
+        if(firstGroup) {
+          e$param[[g]]$lambda.mar <- lambda.mar
+        }
+        else {
+          e$param[[g]]$lambda.mar <- e$param[[1]]$lambda.mar
+        }
+        e$param[[g]]$zeta.mar <- zeta.mar
+        e$param[[g]]$delta.cand <- out.sp$delta.mar
+        e$param[[g]]$sig2k.cand <- out.sp$sig2k.mar
+        e$param[[g]]$sig2.cand <- out.sp$sig2.mar
+        e$param[[g]]$q.delta <- out.sp$q.delta
+        e$param[[g]]$q.sig2k <- out.sp$q.sig2k
+        e$param[[g]]$q.sig2 <- out.sp$q.sig2
       }
 
       # Use latent responses from marginalized model as sane starting values
       e$param[[g]]$Z <- e$param[[g]]$mu.Z <- e$param[[g]]$r <- e$param[[g]]$Z.mar
       e$param[[g]]$x <- e$param[[g]]$r + rnorm(nrow(Yg[[g]])*K, 0, 1)
     }
+
+    #browser()
   }
 
 
   # Initialize chains
   initChains <- function(reinit = FALSE, which, e) {
+    #cat("#### Initialize chains #### \n")
+
     for (c in which) {
       for (g in 1:e$G) {
         # Item parameters
         e$chains[[c]][[g]][[1]][1, ] <- e$param[[g]]$beta.mar  # Item difficulty
-        e$chains[[c]][[g]][[2]][1, ] <- rnorm(e$K, 5, 1) # Time intensity
+        e$chains[[c]][[g]][[2]][1, ] <- e$param[[g]]$lambda.mar #norm(e$K, 5, 1) # Time intensity
 
         # Group parameters
-        e$chains[[c]][[g]][[3]][1, ] <- rnorm(1, 0, 1) # Ability group mean
-        e$chains[[c]][[g]][[4]][1, ] <-  rnorm(1, 0, 1) # Speed group mean
+        e$chains[[c]][[g]][[3]][1, ] <- e$param[[g]]$theta.mar #rnorm(1, 0, 1) # Ability group mean
+        e$chains[[c]][[g]][[4]][1, ] <- e$param[[g]]$zeta.mar #rnorm(1, 0, 1) # Speed group mean
 
         # Covariance matrix Z
         e$chains[[c]][[g]][[5]][1, ] <- e$param[[g]]$tau.cand # tau
 
         # Covariance matrix RT
-        e$chains[[c]][[g]][[6]][1, ] <- runif(1, 0, 1) # delta
-        e$chains[[c]][[g]][[7]][1, ] <- runif(e$K, 0.5, 1.5) # sig2 per item
-        e$chains[[c]][[g]][[8]][1, ] <- mean(e$chains[[c]][[g]][[7]][1, ]) # mean sig2
+        e$chains[[c]][[g]][[6]][1, ] <- e$param[[g]]$delta.cand # runif(1, 0, 1) # delta
+        e$chains[[c]][[g]][[7]][1, ] <- e$param[[g]]$sig2k.cand # runif(e$K, 0.5, 1.5) # sig2 per item
+        e$chains[[c]][[g]][[8]][1, ] <- e$param[[g]]$sig2.cand  #mean(e$chains[[c]][[g]][[7]][1, ]) # mean sig2
 
         # Cross-covariance matrix
         e$chains[[c]][[g]][[9]][1, ] <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) # nu per item
 
-        if(reinit) {
-          e$chains[[c]][[g]][[6]][1, ] <- e$param[[g]]$delta.cand # delta
-          e$chains[[c]][[g]][[7]][1, ] <- e$param[[g]]$sig2k.cand  # sig2 per item
-          e$chains[[c]][[g]][[8]][1, ] <- e$param[[g]]$sig2.cand # mean sig2
-        }
+        # if(reinit) {
+        #   e$chains[[c]][[g]][[6]][1, ] <- e$param[[g]]$delta.cand # delta
+        #   e$chains[[c]][[g]][[7]][1, ] <- e$param[[g]]$sig2k.cand  # sig2 per item
+        #   e$chains[[c]][[g]][[8]][1, ] <- e$param[[g]]$sig2.cand # mean sig2
+        # }
       }
     }
   }
@@ -252,7 +282,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     # Update mu.Z
     out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], e$param[[g]]$Z, e$param[[g]]$mu.Z, mu.ZT, partMatrix, likelihood = FALSE)},
-      error = function(er) { return(NULL) })
+                      error = function(er) { return(NULL) })
 
     # Compute likelihood
     out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z$Z, out.Z$mu.Z, mu.ZT, partMatrix, likelihood = TRUE)},
@@ -260,18 +290,19 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     # If current state is faulty, re-initialized chain
     reset <- FALSE
-    if(is.null(out.Z))
+    if(is.null(out.Z)) {
       reset <- TRUE
+    }
 
     validProposals <- FALSE
     if(!reset) {
       # Update mu.Z for proposals
       out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z$Z, out.Z$mu.Z, mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
-                        error = function(er) { return(NULL) })
+                             error = function(er) { return(NULL) })
 
       # Compute likelihood for proposals
       out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z.cand$Z, out.Z.cand$mu.Z, mu.ZT.cand, partMatrix.cand, likelihood = TRUE)},
-                        error = function(er) { return(NULL) })
+                             error = function(er) { return(NULL) })
 
       if(!is.null(out.Z.cand)) {
         validProposals <- TRUE
@@ -288,8 +319,10 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         if(is.nan(ar) || is.na(ar))
           ar <- 0
       }
-      else
+      else {
         ar <- 0
+        #browser()
+      }
       u <- runif (1, 0, 1)
 
       if (u <= ar) {
@@ -338,6 +371,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
   e <- environment()
   e$initMar(e)
   e$initChains(reinit = FALSE, which = c(1, 2), e)
+  #browser()
 
   ###### Run MCMC ######
   # For each chain
@@ -346,6 +380,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     chain <- chains[[c]] # Read the cc-th chain
     mh.accept <- numeric(G) # MH acceptance rate
     mh.accept.last <- numeric(G) # MH acceptance rate last 100 iterations
+    reset.count <- 0
+    reinit.count <- 0
 
     xg <- 2
     while (xg <= XG) {
@@ -426,43 +462,52 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         else
           chains[[c]][[g]][[4]][xg, ] <- zeta <- sampleZeta(RT = RTg[[g]], lambda = lambda, sig2k = sig2k.s0, delta = delta.s0)
 
-      ############################################################################################################
+        ############################################################################################################
 
 
-      ################################################# Proposals ################################################
+        ################################################# Proposals ################################################
 
         e$sampleProposals(reinit = FALSE, g = g, e = e)
 
-      ############################################################################################################
+        ############################################################################################################
 
 
-      ########################################### Metropolis-Hastings ############################################
+        ########################################### Metropolis-Hastings ############################################
 
         out.mh <- e$doMH(e)
-        reinit.count <- 0
-        while (!out.mh$reset && !out.mh$validProposals && (reinit.count <= 1000)) {
+        while (!out.mh$reset && !out.mh$validProposals && !reset) {
           e$sampleProposals(reinit = TRUE, g = g, e = e)
           out.mh <- e$doMH(e)
           reinit.count <- reinit.count + 1
-          #if (reinit.count == 1000)
-          #  reset <- TRUE
+          if(reinit.count == 15) {
+            reset <- TRUE
+            reinit.count <- 0
+            #browser()
+          }
+          #browser()
+          #print("Invalid Proposals")
         }
 
-      ############################################################################################################
+        ############################################################################################################
 
         if(out.mh$reset) {
           reset <- TRUE
-          e$initMar(e)
-          e$initChains(reinit = TRUE, which = c, e)
-          e$mh.accept <- e$mh.accept.last <- numeric(G)
-          xg <- 2
+          #print("Reset")
         }
 
         g <- g + 1
       }
 
-      if((any(mh.accept/xg < 0.25) || any(mh.accept.last/100 < 0.05)) && (xg%%100 == 0) && !reset) {
-        reset <- TRUE
+      if(((any(mh.accept/xg < 0.25) || any(mh.accept.last/100 < 0.15)) && (xg%%100 == 0)) || reset) {
+        #print(round(mh.accept.last/100, digits=2))
+
+        if(!reset) {
+          reset <- TRUE
+        }
+        reset.count <- reset.count + 1
+        if(reset.count == 20) {
+          return(NULL)
+        }
         e$initMar(e)
         e$initChains(reinit = TRUE, which = c, e)
         e$mh.accept <- e$mh.accept.last <- numeric(G)
@@ -533,7 +578,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
                                "sig2" = c(chain.1[[8]][, ], chain.2[[8]][, ]),
                                "nu" = rbind(chain.1[[9]][, ], chain.2[[9]][, ]),
                                "chain" = c(rep(1, XG), rep(2, XG))
-                               )
+    )
 
     g <- g + 1
   }

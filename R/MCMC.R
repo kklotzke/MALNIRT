@@ -262,8 +262,11 @@ sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstG
       beta1 <- beta.mar[-kk]
       Z1 <- Z.mar[, -kk] # Latent responses to all but the current item
       mu.Z.mar <- (- beta.mar[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
-      Z.mar[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z.mar, sqrt(var.Z.mar))), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 0]
-      Z.mar[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z.mar, sqrt(var.Z.mar)),1), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 1]
+      Z.mar[Y[,kk]==0, kk] <- extraDistr::rtnorm(n = length(mu.Z.mar[Y[, kk]==0]), mean = mu.Z.mar[Y[, kk]==0], sd = sqrt(var.Z.mar), a = -Inf, b = 0)
+      Z.mar[Y[,kk]==1, kk] <- extraDistr::rtnorm(n = length(mu.Z.mar[Y[, kk]==1]), mean = mu.Z.mar[Y[, kk]==1], sd = sqrt(var.Z.mar), a = 0, b = Inf)
+#browser()
+      #Z.mar[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z.mar, sqrt(var.Z.mar))), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 0]
+      #Z.mar[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z.mar, sqrt(var.Z.mar)),1), mu.Z.mar, sqrt(var.Z.mar))[Y[, kk] == 1]
     }
   #}
 

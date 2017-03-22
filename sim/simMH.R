@@ -1,7 +1,20 @@
+# be <- la <- matrix(NA, nrow = 100, ncol = sim.K)
+# for(ii in 1:100)
+# {
+#   dat.tmp <- simdataLNIRT(N = sim.N, K = sim.K, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.15,sim.K))
+#   be[ii, ] <- dat.tmp$beta
+#   la[ii, ] <- dat.tmp$lambda
+# }
+dat.tmp <- simdataLNIRT(N = sim.N, K = sim.K, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.15,sim.K))
+beta <- dat.tmp$beta
+lambda <- dat.tmp$lambda
+save(beta, lambda, file = "beta_lambda.Rdata")
+
+
 sim.N <- 500
 sim.K <- 10
 sim.XG <- 1000
-sim.rep <- 10
+sim.rep <- 25
 sim.delta <- sim.tau <- numeric(sim.rep)
 sim.nu <- matrix(NA, nrow = sim.rep, ncol = sim.K)
 sim.beta <- sim.lambda <- matrix(NA, nrow = sim.rep, ncol = sim.K)
