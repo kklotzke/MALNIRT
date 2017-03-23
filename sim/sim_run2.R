@@ -3,7 +3,7 @@ library(MALNIRT)
 setwd("~/Desktop/github_kklotzke/MALNIRT/sim")
 #load("beta_lambda.Rdata")
 
-sim.N <- 200
+sim.N <- 500
 sim.K <- 20
 sim.XG <- 1000
 sim.rep <- 15

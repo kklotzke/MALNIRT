@@ -318,6 +318,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         #print(any((is.na(out.Z$Z))))
         if(is.nan(ar) || is.na(ar))
           ar <- 0
+        else
+          ar <- min(1, ar)
       }
       else {
         ar <- 0

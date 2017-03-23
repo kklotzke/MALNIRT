@@ -16,7 +16,7 @@ cat("Cor. beta: ", round(mean(out.cor.beta), digits = 3), " (", round(sd(out.cor
 cat("Cor. lambda: ", round(mean(out.cor.lambda), digits = 3), " (", round(sd(out.cor.lambda), digits = 3), ")\n\n", sep = "")
 
 cat("Estimated nu - Simulated nu (Means)\n")
-print(summary(colMeans(out.nu)- (seq(from = -0.35, to = 0.2, length.out = 10))))
+print(summary(colMeans(out.nu)- (seq(from = -0.35, to = 0.2, length.out = 20))))
 cat("\n Estimated nu (SD) \n")
 cat(round(apply(out.nu, FUN = sd, MARGIN = 2), digits = 3), "\n")
 
