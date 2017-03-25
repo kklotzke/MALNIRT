@@ -1,11 +1,16 @@
-dat4.1 <- simdataLNIRT(N = 500, K = 10, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.20,10))
-dat4.2 <- simdataLNIRT(N = 500, K = 10, delta = c(0.1,0), tau = c(0.15,0), nu = rep(-0.15,10), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = 0.5, zeta.offset = 0.5)
-dat4.3 <- simdataLNIRT(N = 500, K = 10, delta = c(0.15,0), tau = c(0.10,0), nu = rep(0,10), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = -0.5, zeta.offset = -0.5)
-group <- c(rep(1, 500), rep(2, 500))#, rep(3, 500))
+dat4.1 <-  simdataLNIRT(N = 500, K = 10, delta = c(0.2,0), tau = c(0.2,0), nu = c(seq(0.2, -0.05, length.out = 3),
+                                                                                   seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3)))
+dat4.2 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
+                       nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)),
+                       lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = 1, zeta.offset = 0)
+#dat4.3 <- simdataLNIRT(N = 350, K = 10, delta = c(0.15,0), tau = c(0.15,0), nu = rep(0,10), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = -0.2, zeta.offset = -0.45)
+group <- c(rep(1, 500), rep(2, 500))#, rep(3, 350))
 y.all <- rbind(dat4.1$Y, dat4.2$Y)#, dat4.3$Y)
 rt.all <- rbind(dat4.1$RT, dat4.2$RT)#, dat4.3$RT)
 
-out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 800, est.person = FALSE)
+
+
+out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 1000, est.person = FALSE)
 summary(out4$post.means[[1]]$beta - dat4.1$beta)
 summary(out4$post.means[[1]]$lambda - dat4.1$lambda)
 c(out4$post.means[[1]]$theta, out4$post.means[[2]]$theta)#, out4$post.means[[3]]$theta)
@@ -14,22 +19,67 @@ c(out4$post.means[[1]]$tau, out4$post.means[[2]]$tau)#, out4$post.means[[3]]$tau
 c(out4$post.means[[1]]$delta, out4$post.means[[2]]$delta)#, out4$post.means[[3]]$delta)
 rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu)#, out4$post.means[[3]]$nu)
 rowMeans(rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu))#, out4$post.means[[3]]$nu))
+BIC.zeta <- out4$BIC.zeta
+BIC.zeta$BIC2 - BIC.zeta$BIC1
+cor(out4$post.means[[1]]$sig2k, dat4.1$sig2k)
+cor(out4$post.means[[2]]$sig2k, dat4.2$sig2k)
 
 
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4.1, XG = 1000, est.person = FALSE)
+
+dat4 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
+                     nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)))
+
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4.2, XG = 1000, burnin = 0.1, est.person = FALSE)
 summary(out5$post.means[[1]]$beta - dat4.1$beta)
-summary(out5$post.means[[1]]$lambda - dat4.1$lambda)
-summary(out5$post.means[[1]]$nu - dat4.1$nu)
-summary(out5$post.means[[1]]$sig2k - dat4.1$sig2k)
+summary(out5$post.means[[1]]$lambda - dat4$lambda)
+summary(out5$post.means[[1]]$nu - dat4$nu)
+summary(out5$post.means[[1]]$sig2k - dat4$sig2k)
 out5$post.means[[1]]$tau
 out5$post.means[[1]]$delta
+cor(out5$post.means[[1]]$sig2k, dat4$sig2k)
+
+#dat4 <- dat4.1
+out5l <- LNIRT(RT = RT, Y = Y, data = dat4, XG = 1000, td = TRUE)
+s.out5l <- summary(out5l)
+summary(s.out5l$idiff - dat4$beta)
+summary(s.out5l$tintens - dat4$lambda)
+summary(s.out5l$estsigma2 - dat4$sig2k)
+s.out5l$SigmaPcor
+s.out5l$SigmaIcor
+cor(s.out5l$estsigma2, dat4$sig2k)
+
+
+out5i <- MAIRT(Y = Y, data = dat4.2, XG = 1000, est.person = FALSE)
+summary(out5i$beta - dat4.2$beta)
+out5i$tau
+
+out5li <- MALNRT(RT = RT, data = dat4.2, XG = 1000, est.person = FALSE)
+summary(out5li$lambda - dat4.2$lambda)
+summary(out5li$sig2k[,1] - dat4.2$sig2k)
+out5li$delta
 
 
 
-plot(1:2000, out5$samples[[1]]$nu.11, type = "l")
-plot(1:2000, out5$samples[[1]]$nu.2, type = "l")
+
+plot(1:10, dat4$beta, col="black")
+points(out5$post.means[[1]]$beta, col="blue", pch=5)
+points(s.out5l$idiff, col="green", pch=2)
+
+plot(1:10, dat4$lambda, col="black")
+points(out5$post.means[[1]]$lambda, col="blue", pch=5)
+points(s.out5l$tintens, col="green", pch=2)
+
+plot(1:10, dat4$sig2k, col="black")
+points(out5$post.means[[1]]$sig2k, col="blue", pch=5)
+points(s.out5l$estsigma2, col="green", pch=2)
+
+
+plot(1:10000, out5$samples[[1]]$tau, type = "l")
+plot(1:2000, out5$samples[[1]]$nu.22, type = "l")
 plot(1:2000, out5$samples[[1]]$sig2k.1, type = "l")
 plot(1:2000, out5$samples[[1]]$sig2k.2, type = "l")
+plot(1:2000, out5$samples[[1]]$beta.8, type = "l")
+
 
 
 #dat <- simMALNIRT(1000, 20, 1, 0, 0)

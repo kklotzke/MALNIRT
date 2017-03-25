@@ -2,7 +2,8 @@
 #' @importFrom invgamma dinvgamma
 #' @importFrom extraDistr rinvgamma dtnorm rtnorm
 #' @export
-MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin = 0.10, est.person = FALSE, silent = FALSE) {
+MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin = 0.10, est.person = FALSE,
+                    doBIC.zeta = FALSE, doBIC.theta = FALSE, doBIC.nu = FALSE, silent = FALSE) {
 
   ###### Initialize ######
   if (!missing(data)) {
@@ -89,7 +90,6 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
   initMar <- function(e) {
 
     #cat("#### Initialize marginalized models #### \n")
-
     firstGroup <- TRUE
     for (g in 1:e$G) {
       if(g > 1)
@@ -111,6 +111,9 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
                                           theta.mar = e$param[[g]]$theta.mar, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup) # Use beta's of first group, where theta = 0
           out.sp <- sampleMarSpeedModel(RT = e$RTg[[g]], lambda = e$param[[1]]$lambda.mar, zeta = e$param[[g]]$zeta.mar,
                                         delta.mar = e$param[[g]]$delta.cand, sig2k.mar = e$param[[g]]$sig2k.cand)
+
+          if(xg == 1)
+            e$param[[g]]$sig2k.cand <- runif(K, 0.5, 1.5)
           zeta.mar <- sampleZeta(RT = e$RTg[[g]], lambda = e$param[[1]]$lambda.mar, sig2k = e$param[[g]]$sig2k.cand, delta = e$param[[g]]$delta.cand)
         }
 
@@ -140,6 +143,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
       e$param[[g]]$x <- e$param[[g]]$r + rnorm(nrow(Yg[[g]])*K, 0, 1)
     }
 
+    #print("Done initializing")
     #browser()
   }
 
@@ -151,8 +155,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     for (c in which) {
       for (g in 1:e$G) {
         # Item parameters
-        e$chains[[c]][[g]][[1]][1, ] <- e$param[[g]]$beta.mar  # Item difficulty
-        e$chains[[c]][[g]][[2]][1, ] <- e$param[[g]]$lambda.mar #norm(e$K, 5, 1) # Time intensity
+        e$chains[[c]][[g]][[1]][1, ] <- e$param[[1]]$beta.mar  # Item difficulty
+        e$chains[[c]][[g]][[2]][1, ] <- e$param[[1]]$lambda.mar #norm(e$K, 5, 1) # Time intensity
 
         # Group parameters
         e$chains[[c]][[g]][[3]][1, ] <- e$param[[g]]$theta.mar #rnorm(1, 0, 1) # Ability group mean
@@ -182,10 +186,12 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
   sampleProposals <- function(reinit = FALSE, g, e) {
 
     ### Sample proposal for tau from marginalized ability model ###
+    #out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z.mar, beta.mar = e$param[[g]]$beta.mar,
+    #                                theta.mar = e$param[[g]]$theta.mar, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup)
     out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z.mar, beta.mar = e$param[[g]]$beta.mar,
-                                    theta.mar = e$param[[g]]$theta.mar, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup)
-    #out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z, beta.mar = e$beta,
-    #                                theta.mar = e$theta, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup, init = FALSE)
+                                    theta.mar = 0, tau.mar <- e$param[[g]]$tau.cand, firstGroup = firstGroup, init = FALSE)
+    #out.ab <- sampleMarAbilityModel(Y = e$Yg[[g]], Z.mar = e$param[[g]]$Z.mar, beta.mar = e$beta,
+   #                                 theta.mar = e$theta, tau.mar = e$param[[g]]$tau.cand, firstGroup = e$firstGroup, init = FALSE)
     e$param[[g]]$Z.mar <- out.ab$Z.mar
     e$param[[g]]$beta.mar <- out.ab$beta.mar
     e$param[[g]]$theta.mar <- out.ab$theta.mar
@@ -193,7 +199,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     e$param[[g]]$q.tau <- out.ab$q.tau
 
     ### Sample proposal for delta, sig2k and sig2 from marginalized speed model ###
-    out.sp <- sampleMarSpeedModel(RT = e$RTg[[g]], lambda = e$lambda, zeta = e$zeta, delta.mar = e$param[[g]]$delta.cand, sig2k.mar = e$param[[g]]$sig2k.cand)
+    #out.sp <- sampleMarSpeedModel(RT = e$RTg[[g]], lambda = e$lambda, zeta = e$zeta, delta.mar = e$param[[g]]$delta.cand, sig2k.mar = e$param[[g]]$sig2k.cand)
+    out.sp <- sampleMarSpeedModel(RT = e$RTg[[g]], lambda = e$lambda, zeta = 0, delta.mar = e$param[[g]]$delta.cand, sig2k.mar = e$param[[g]]$sig2k.cand)
 
     e$param[[g]]$delta.cand <- out.sp$delta.mar
     e$param[[g]]$sig2k.cand <- out.sp$sig2k.mar
@@ -209,6 +216,9 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     if(reinit)
       e$param[[g]]$nu.cand <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]]))
+
+    #if(g == 2)
+    #  print(e$param[[g]]$tau.cand)
   }
 
   ############################################################################################################
@@ -419,14 +429,26 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
       sig2k.all <- sig2k.all / G
 
       ### Sample item difficulty paramaters ###
-      chains[[c]][[1]][[1]][xg, ] <- beta <- sampleBeta(Z = Z.all, beta = beta.s0, theta = theta.all, tau = tau.all)
+      #chains[[c]][[1]][[1]][xg, ] <- beta <- sampleBeta(Z = Z.all, beta = beta.s0, theta = theta.all, tau = tau.all)
       #chains[[c]][[1]][[1]][xg, ] <- beta <- sampleBeta(Z = param[[1]]$Z, beta = beta.s0, theta = 0, tau = chains[[c]][[1]][[5]][xg-1, ])
+      beta <- sampleBeta(Z = param[[1]]$Z, beta = beta.s0, theta = 0, tau = chains[[c]][[1]][[5]][xg-1, ])
+#beta <- dat4.1$beta
 
       ### Sample item time intensity paramaters ###
-      chains[[c]][[1]][[2]][xg, ] <- lambda <- sampleLambda(RT = RT.all, lambda = lambda.s0, zeta = zeta.all, sig2k = sig2k.all, delta = delta.all)
+      #chains[[c]][[1]][[2]][xg, ] <- lambda <- sampleLambda(RT = RT.all, lambda = lambda.s0, zeta = zeta.all, sig2k = sig2k.all, delta = delta.all)
       #chains[[c]][[1]][[2]][xg, ] <- lambda <- sampleLambda(RT = RTg[[1]], lambda = lambda.s0, zeta = 0, sig2k = chains[[c]][[1]][[7]][xg-1, ], delta = chains[[c]][[1]][[6]][xg-1, ])
+      lambda <- sampleLambda(RT = RTg[[1]], lambda = lambda.s0, zeta = 0, sig2k = chains[[c]][[1]][[7]][xg-1, ], delta = chains[[c]][[1]][[6]][xg-1, ])
 
       g <- 2
+      while(g <= G) {
+        beta <- beta + sampleBeta(Z = param[[g]]$Z, beta = beta.s0, theta = chains[[c]][[g]][[3]][xg-1, ], tau = chains[[c]][[g]][[5]][xg-1, ])
+        lambda <- lambda + sampleLambda(RT = RTg[[g]], lambda = lambda.s0, zeta = chains[[c]][[g]][[4]][xg-1, ], sig2k = chains[[c]][[g]][[7]][xg-1, ], delta = chains[[c]][[g]][[6]][xg-1, ])
+        g <- g + 1
+      }
+      beta <- beta / G
+      lambda <- lambda / G
+
+      g <- 1
       while(g <= G) {
         chains[[c]][[g]][[1]][xg, ] <- beta
         chains[[c]][[g]][[2]][xg, ] <- lambda
@@ -481,7 +503,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
           e$sampleProposals(reinit = TRUE, g = g, e = e)
           out.mh <- e$doMH(e)
           reinit.count <- reinit.count + 1
-          if(reinit.count == 15) {
+          if(reinit.count == 25) {
             reset <- TRUE
             reinit.count <- 0
             #browser()
@@ -503,11 +525,13 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
       if(((any(mh.accept/xg < 0.25) || any(mh.accept.last/100 < 0.15)) && (xg%%100 == 0)) || reset) {
         #print(round(mh.accept.last/100, digits=2))
 
+        cat("Reset | MH acceptance rate ", round(mh.accept/xg, digits=2), " | ", round(mh.accept.last/100, digits=2), "\n")
+
         if(!reset) {
           reset <- TRUE
         }
         reset.count <- reset.count + 1
-        if(reset.count == 20) {
+        if(reset.count == 5) {
           return(NULL)
         }
         e$initMar(e)
@@ -585,6 +609,27 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     g <- g + 1
   }
 
+  ###### Model selection ######
+  if (G > 1) {
+
+    # Model 1: G speed group parameters vs Model 2: 1 speed group parameter
+    zetag <- deltag <- numeric(G)
+    sig2gk <- list()
+
+    g <- 1
+    while (g <= G) {
+      zetag[g] <- post.means[[g]]$zeta
+      sig2gk[[g]] <- post.means[[g]]$sig2k
+      deltag[g] <- post.means[[g]]$delta
+      g <- g + 1
+    }
+    out.BIC.zeta <- computeBIC.zeta(RTg, post.means[[1]]$lambda, zetag, sig2gk, deltag)
+  }
+  else {
+    out.BIC.zeta <- NULL
+  }
+
+
   #print(param[[1]]$beta.mar)
-  return(list(post.means = post.means, samples = samples, XG.burnin = XG.burnin))
+  return(list(post.means = post.means, samples = samples, XG.burnin = XG.burnin, BIC.zeta = out.BIC.zeta))
 }

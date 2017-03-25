@@ -96,7 +96,7 @@ sampleBeta <- function(Z, beta, theta = 0, tau, a.beta = 0.5, b.beta = 0.5, n0.b
   #ones <- rep(1, K)
   #varinv <- diag(1/(rep(1, K) + tau))
   #var.gen <- (t(ones) %*% varinv) %*% ones
-  var.gen <- rep(1/(1 + tau), K)
+  var.gen <- 1/(1 + tau) #rep(1/(1 + tau), K)
 
   ### Sample item difficulty paramaters ###
 
@@ -181,7 +181,6 @@ sampleZeta <- function(RT, lambda, sig2k, delta)
   var.gen <- 1/(sum(sig2k[1:K]/K^2 + delta/K))
   #print(var.gen)
 
-
   ### Sample group speed parameter ###
 
   # Hyper parameters
@@ -208,23 +207,21 @@ sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstG
   #var.gen <- (t(ones) %*% varinv) %*% ones
   var.gen <- rep(1/(1 + tau.mar), K)
 
-  if(init) {
+  # if(init) {
 
     ### Sample item difficulty parameters ###
 
-    if (firstGroup) {
-      # Hyper parameters
-      SS <- b.beta + sum((beta.mar - mean(beta.mar))^2) + (K*n0.beta*mean(beta.mar))/(2*(K + n0.beta))
-      var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
-      mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.mar))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
+    # Hyper parameters
+    SS <- b.beta + sum((beta.mar - mean(beta.mar))^2) + (K*n0.beta*mean(beta.mar))/(2*(K + n0.beta))
+    var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
+    mu0.beta <- rnorm(1, (K*var0.beta*mean(beta.mar))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
-      var.beta <- 1/(N*(var.gen) + 1/var0.beta)
-      mu.beta <- var.beta*((N*(mean(theta.mar) - colMeans(Z.mar)))*(var.gen) + mu0.beta/var0.beta)
+    var.beta <- 1/(N*(var.gen) + 1/var0.beta)
+    mu.beta <- var.beta*((N*(mean(theta.mar) - colMeans(Z.mar)))*(var.gen) + mu0.beta/var0.beta)
 
-      # Draw K time intensity parameters
-      beta.mar <- rnorm(K, mu.beta, sqrt(var.beta))
-    }
-  }
+    # Draw K time intensity parameters
+    beta.mar <- rnorm(K, mu.beta, sqrt(var.beta))
+  # }
 
 
   if(init) {
