@@ -49,7 +49,7 @@ sampleTheta_i <- function(Z.g, beta, tau.g, theta_i.min1)
 }
 
 #' @export
-sampleZ <- function(Y, Z, mu.Z, mu.ZT, partMatrix, likelihood = FALSE)
+sampleZ <- function(Y, Z, ZT, mu.Z, mu.ZT, partMatrix, u, theta, likelihood = FALSE)
 {
   K <- ncol(Z)
   N <- nrow(Z)
@@ -58,7 +58,8 @@ sampleZ <- function(Y, Z, mu.Z, mu.ZT, partMatrix, likelihood = FALSE)
   lik_k <- rep(NA, K) # Probability density for Z_k
   tmp <- vector("list", K)
   for (k in 1:K) {
-    tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(Z[, -k] - mu.Z[, -k])
+    #tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(Z[, -k] - mu.Z[, -k])
+    tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(ZT[, -k] - mu.ZT[, -k])
     mu.Z[, k] <-  mu.ZT[, k] +  tmp[[k]]
     var.Z[k] <- partMatrix[[k]]$B11 - partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% partMatrix[[k]]$B21
 
@@ -104,6 +105,10 @@ sampleBeta <- function(Z, beta, theta = 0, tau, a.beta = 0.5, b.beta = 0.5, n0.b
   SS <- b.beta + sum((beta - mean(beta))^2) + (K*n0.beta*mean(beta))/(2*(K + n0.beta))
   var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
   mu0.beta <- rnorm(1, (-K*var0.beta*mean(beta))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
+
+  #print(mu0.beta)
+  var0.beta <- 10^10
+  mu0.beta <- 0
 
   var.beta <- 1/(N*(var.gen) + 1/var0.beta)
   mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z)))*(var.gen) + mu0.beta/var0.beta)
@@ -161,9 +166,15 @@ sampleTheta <- function(Z, beta, tau)
 
   var.theta <- 1/(N*(var.gen) + 1/var0.theta)
   mu.theta <- var.theta*((N*(mean(beta) + mean(Z)))*(var.gen) + mu0.theta/var0.theta)
+  #mu.theta <- var.theta*((N*(mean(Z)))*(var.gen) + mu0.theta/var0.theta)
 
-  # Draw K item difficulty parameters
+
+  #theta <- mean(Z)
+
+  # Draw group ability mean
   theta <- rnorm(1, mu.theta, sqrt(var.theta))
+
+  #print(theta)
 
   return(theta = theta)
 }
@@ -190,7 +201,7 @@ sampleZeta <- function(RT, lambda, sig2k, delta)
   var.zeta <- 1/(N*(var.gen) + 1/var0.zeta)
   mu.zeta <- var.zeta*((N*(mean(lambda) - mean(RT)))*(var.gen) + mu0.zeta/var0.zeta)
 
-  # Draw K time intensity parameters
+  # Draw group speed mean
   zeta <- rnorm(1, mu.zeta, sqrt(var.zeta))
 
   return(zeta = zeta)

@@ -211,7 +211,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     ### Sample proposal for nu as regression parameter ###
     out.cor <- sampleCorrelationNu (r = e$param[[g]]$r, x = e$param[[g]]$x, var.Z = e$param[[g]]$var.Z)
-    e$param[[g]]$nu.cand <- out.cor$nu
+    e$param[[g]]$nu.cand <- out.cor$nu # diag(cov(e$param[[g]]$Z, e$RTg[[g]])) #rep(0, K) out.cor$nu #
     e$param[[g]]$q.nu <- out.cor$q.nu
 
     if(reinit)
@@ -237,7 +237,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
     muT <- e$lambda - e$zeta
 
     # Conditional mean of Z|T for each item
-    x <- x.cand <- mu.ZT <- mu.ZT.cand <- matrix(NA, ncol = K, nrow = Ng)
+    x <- x.cand <- mu.ZT <- mu.ZT.cand <- u <- u.cand <- matrix(NA, ncol = K, nrow = Ng)
     #x <- t((diag(1/e$sig2k.s0) - ((1/e$sig2k.s0) %*% t(1/e$sig2k.s0))/a) %*% t(e$RTg[[g]]))
     #x.cand <- t((diag(1/e$param[[g]]$sig2k.cand) - ((1/e$param[[g]]$sig2k.cand) %*% t(1/e$param[[g]]$sig2k.cand))/a.cand) %*% t(e$RTg[[g]]))
 
@@ -250,6 +250,9 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
       mu.ZT[, k] <- muZ[k] + e$nu.s0[k] * x[, k]
       mu.ZT.cand[, k] <- muZ[k] + e$param[[g]]$nu.cand[k] * x.cand[, k]
+
+      u[, k] <- e$nu.s0[k] * x[, k]
+      u.cand[, k] <- e$param[[g]]$nu.cand[k] * x.cand[, k]
     }
 
     I.min1 <- diag(e$K-1)
@@ -290,13 +293,43 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
       partMatrix.cand[[k]]$B22.inv <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
     }
 
-    # Update mu.Z
-    out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], e$param[[g]]$Z, e$param[[g]]$mu.Z, mu.ZT, partMatrix, likelihood = FALSE)},
-                      error = function(er) { return(NULL) })
+    #u <- t(diag(e$nu.s0) %*% t(x))
+    #u.cand <- t(diag(e$param[[g]]$nu.cand) %*% t(x.cand))
+#browser()
+    Sigma.ZT <- ( diag(K) + J*e$tau.s0[1] ) - diag(e$nu.s0) %*% solve( diag(e$sig2k.s0) + J*e$delta.s0[1] ) %*% t(diag(e$nu.s0))
+    ZT <- matrix(NA, nrow = Ng, ncol = K)
+    i <- 1
+    validZT <- TRUE
+    out.chol <- tryCatch({chol(Sigma.ZT)}, error = function(er) { return(NULL) })
+    if(is.null(out.chol))
+      validZT <- FALSE
 
-    # Compute likelihood
-    out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z$Z, out.Z$mu.Z, mu.ZT, partMatrix, likelihood = TRUE)},
+    while ((i <= Ng) && validZT) {
+      tryCatch({ZT[i, ] <- mvnfast::rmvn(1, mu = mu.ZT[i,], sigma = Sigma.ZT)},
+               error = function(er) { return(NULL) })
+      if(any(is.null(ZT[i, ])))
+        validZT <- FALSE
+
+      i <- i + 1
+
+      #mvnfast::rmvn(1, mu = mu.ZT[i,], sigma = Sigma.ZT)
+      #mvtnorm::rmvnorm(1, mean = mu.ZT[i,], sigma = Sigma.ZT)
+    }
+
+    th <- e$theta
+
+    if(validZT) {
+    # Update mu.Z
+      out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], e$param[[g]]$Z, e$param[[g]]$mu.Z, ZT, mu.ZT, partMatrix, u, theta =  th, likelihood = TRUE)},
                       error = function(er) { return(NULL) })
+    }
+    else {
+      out.Z <- NULL
+    }
+
+    # # Compute likelihood
+    # out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z$Z, out.Z$mu.Z, mu.ZT, partMatrix, u, likelihood = TRUE)},
+    #                   error = function(er) { return(NULL) })
 
     # If current state is faulty, re-initialized chain
     reset <- FALSE
@@ -306,13 +339,38 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
 
     validProposals <- FALSE
     if(!reset) {
-      # Update mu.Z for proposals
-      out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z$Z, out.Z$mu.Z, mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
+
+      Sigma.ZT.cand <- ( diag(K) + J*e$param[[g]]$tau.cand ) - diag(e$param[[g]]$nu.cand) %*% solve( diag(e$param[[g]]$sig2k.cand) + J*e$param[[g]]$delta.cand ) %*% t(diag(e$param[[g]]$nu.cand))
+      ZT.cand <- matrix(NA, nrow = Ng, ncol = K)
+      i <- 1
+      validZT <- TRUE
+      out.chol <- tryCatch({chol(Sigma.ZT.cand)}, error = function(er) { return(NULL) })
+      if(is.null(out.chol))
+        validZT <- FALSE
+      while ((i <= Ng) && validZT) {
+        tryCatch({ZT.cand[i, ] <- mvnfast::rmvn(1, mu = mu.ZT.cand[i,], sigma = Sigma.ZT.cand)},
+                 error = function(er) { return(NULL) })
+        if(any(is.null(ZT.cand[i, ])))
+          validZT <- FALSE
+
+        i <- i + 1
+
+        #mvnfast::rmvn(1, mu = mu.ZT.cand[i,], sigma = Sigma.ZT.cand)
+        #mvtnorm::rmvnorm(1, mean = mu.ZT.cand[i,], sigma = Sigma.ZT.cand)
+      }
+
+      if(validZT) {
+        # Update mu.Z for proposals
+        out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z$Z, ZT.cand, out.Z$mu.Z, mu.ZT.cand, partMatrix.cand, u.cand, theta =  th, likelihood = TRUE)},
                              error = function(er) { return(NULL) })
+      }
+      else {
+        out.Z.cand <- NULL
+      }
 
       # Compute likelihood for proposals
-      out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z.cand$Z, out.Z.cand$mu.Z, mu.ZT.cand, partMatrix.cand, likelihood = TRUE)},
-                             error = function(er) { return(NULL) })
+      #out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], out.Z.cand$Z, out.Z.cand$mu.Z, mu.ZT.cand, partMatrix.cand, u.cand, likelihood = TRUE)},
+      #                       error = function(er) { return(NULL) })
 
       if(!is.null(out.Z.cand)) {
         validProposals <- TRUE
@@ -320,8 +378,8 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         lik <- sum(out.Z$lik_k) + invgamma::dinvgamma(e$param[[g]]$tau.cand + 1/K, e$param[[g]]$q.tau$shape, e$param[[g]]$q.tau$rate, log = TRUE) + invgamma::dinvgamma(e$param[[g]]$delta.cand + 1/K, e$param[[g]]$q.delta$shape, e$param[[g]]$q.delta$rate, log = TRUE)
         lik.cand <- sum(out.Z.cand$lik_k) + invgamma::dinvgamma(e$tau.s0 + 1/K, e$param[[g]]$q.tau$shape, e$param[[g]]$q.tau$rate, log = TRUE) + invgamma::dinvgamma(e$delta.s0 + 1/K, e$param[[g]]$q.delta$shape, e$param[[g]]$q.delta$rate, log = TRUE)
         for (k in 1:K) {
-          lik <- lik + dnorm(e$param[[g]]$nu.cand[k], e$param[[g]]$q.nu$mu[k], e$param[[g]]$q.nu$sd[k], TRUE) + invgamma::dinvgamma(e$param[[g]]$sig2k.cand[k], e$param[[g]]$q.sig2k$shape, e$param[[g]]$q.sig2k$rate[k], log = TRUE)
-          lik.cand <- lik.cand + dnorm(e$nu.s0[k], e$param[[g]]$q.nu$mu[k], e$param[[g]]$q.nu$sd[k], TRUE) + invgamma::dinvgamma(e$sig2k.s0[k], e$param[[g]]$q.sig2k$shape, e$param[[g]]$q.sig2k$rate[k], log = TRUE)
+          lik <- lik + invgamma::dinvgamma(e$param[[g]]$sig2k.cand[k], e$param[[g]]$q.sig2k$shape, e$param[[g]]$q.sig2k$rate[k], log = TRUE) + dnorm(e$param[[g]]$nu.cand[k], e$param[[g]]$q.nu$mu[k], e$param[[g]]$q.nu$sd[k], TRUE)
+          lik.cand <- lik.cand + invgamma::dinvgamma(e$sig2k.s0[k], e$param[[g]]$q.sig2k$shape, e$param[[g]]$q.sig2k$rate[k], log = TRUE) + dnorm(e$nu.s0[k], e$param[[g]]$q.nu$mu[k], e$param[[g]]$q.nu$sd[k], TRUE)
         }
 
         ar <- exp(lik.cand - lik)
@@ -330,6 +388,9 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
           ar <- 0
         else
           ar <- min(1, ar)
+
+        #if(validProposals)
+        #  ar <- 1
       }
       else {
         ar <- 0
@@ -431,27 +492,37 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
       ### Sample item difficulty paramaters ###
       #chains[[c]][[1]][[1]][xg, ] <- beta <- sampleBeta(Z = Z.all, beta = beta.s0, theta = theta.all, tau = tau.all)
       #chains[[c]][[1]][[1]][xg, ] <- beta <- sampleBeta(Z = param[[1]]$Z, beta = beta.s0, theta = 0, tau = chains[[c]][[1]][[5]][xg-1, ])
-      beta <- sampleBeta(Z = param[[1]]$Z, beta = beta.s0, theta = 0, tau = chains[[c]][[1]][[5]][xg-1, ])
+      #beta <- sampleBeta(Z = param[[1]]$Z, beta = beta.s0, theta = 0, tau = chains[[c]][[1]][[5]][xg-1, ])
 #beta <- dat4.1$beta
 
       ### Sample item time intensity paramaters ###
       #chains[[c]][[1]][[2]][xg, ] <- lambda <- sampleLambda(RT = RT.all, lambda = lambda.s0, zeta = zeta.all, sig2k = sig2k.all, delta = delta.all)
       #chains[[c]][[1]][[2]][xg, ] <- lambda <- sampleLambda(RT = RTg[[1]], lambda = lambda.s0, zeta = 0, sig2k = chains[[c]][[1]][[7]][xg-1, ], delta = chains[[c]][[1]][[6]][xg-1, ])
-      lambda <- sampleLambda(RT = RTg[[1]], lambda = lambda.s0, zeta = 0, sig2k = chains[[c]][[1]][[7]][xg-1, ], delta = chains[[c]][[1]][[6]][xg-1, ])
+      #lambda <- sampleLambda(RT = RTg[[1]], lambda = lambda.s0, zeta = 0, sig2k = chains[[c]][[1]][[7]][xg-1, ], delta = chains[[c]][[1]][[6]][xg-1, ])
 
-      g <- 2
-      while(g <= G) {
-        beta <- beta + sampleBeta(Z = param[[g]]$Z, beta = beta.s0, theta = chains[[c]][[g]][[3]][xg-1, ], tau = chains[[c]][[g]][[5]][xg-1, ])
-        lambda <- lambda + sampleLambda(RT = RTg[[g]], lambda = lambda.s0, zeta = chains[[c]][[g]][[4]][xg-1, ], sig2k = chains[[c]][[g]][[7]][xg-1, ], delta = chains[[c]][[g]][[6]][xg-1, ])
-        g <- g + 1
-      }
-      beta <- beta / G
-      lambda <- lambda / G
+
+      # g <- 2
+      # while(g <= G) {
+      #   beta <- beta + sampleBeta(Z = param[[g]]$Z, beta = beta.s0, theta = chains[[c]][[g]][[3]][xg-1, ], tau = chains[[c]][[g]][[5]][xg-1, ])
+      #   lambda <- lambda + sampleLambda(RT = RTg[[g]], lambda = lambda.s0, zeta = chains[[c]][[g]][[4]][xg-1, ], sig2k = chains[[c]][[g]][[7]][xg-1, ], delta = chains[[c]][[g]][[6]][xg-1, ])
+      #   g <- g + 1
+      # }
+      # beta <- beta / G
+      # lambda <- lambda / G
+
+      # g <- 1
+      # while(g <= G) {
+      #   chains[[c]][[g]][[1]][xg, ] <- beta
+      #   chains[[c]][[g]][[2]][xg, ] <- lambda
+      #   g <- g + 1
+      # }
 
       g <- 1
       while(g <= G) {
-        chains[[c]][[g]][[1]][xg, ] <- beta
-        chains[[c]][[g]][[2]][xg, ] <- lambda
+        beta.s0 <- chains[[c]][[g]][[1]][xg-1, ]
+        lambda.s0 <- chains[[c]][[g]][[2]][xg-1, ]
+        chains[[c]][[g]][[1]][xg, ] <- sampleBeta(Z = param[[g]]$Z, beta = beta.s0, theta = chains[[c]][[g]][[3]][xg-1, ], tau = chains[[c]][[g]][[5]][xg-1, ])
+        chains[[c]][[g]][[2]][xg, ] <- sampleLambda(RT = RTg[[g]], lambda = lambda.s0, zeta = chains[[c]][[g]][[4]][xg-1, ], sig2k = chains[[c]][[g]][[7]][xg-1, ], delta = chains[[c]][[g]][[6]][xg-1, ])
         g <- g + 1
       }
 
@@ -473,18 +544,20 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
         sig2k.s0 <- chains[[c]][[g]][[7]][xg-1, ]
         sig2.s0 <- chains[[c]][[g]][[8]][xg-1, ]
         nu.s0 <- chains[[c]][[g]][[9]][xg-1, ]
+        beta <- chains[[c]][[g]][[1]][xg, ]
+        lambda <- chains[[c]][[g]][[2]][xg, ]
 
         ### Sample group ability parameter ###
         if (g == 1) # Ability group mean of first group is fixed to zero
           chains[[c]][[g]][[3]][xg, ] <- theta <- 0
         else
-          chains[[c]][[g]][[3]][xg, ] <- theta <- sampleTheta(Z = param[[g]]$Z, beta = beta, tau = tau.s0)
+          chains[[c]][[g]][[3]][xg, ] <- theta <- sampleTheta(Z = param[[g]]$Z, beta = chains[[c]][[1]][[1]][xg, ], tau = tau.s0)
 
         ### Sample group speed parameter ###
         if (g == 1) # Speed group mean of first group is fixed to zero
           chains[[c]][[g]][[4]][xg, ] <- zeta <- 0
         else
-          chains[[c]][[g]][[4]][xg, ] <- zeta <- sampleZeta(RT = RTg[[g]], lambda = lambda, sig2k = sig2k.s0, delta = delta.s0)
+          chains[[c]][[g]][[4]][xg, ] <- zeta <- sampleZeta(RT = RTg[[g]], lambda = chains[[c]][[1]][[2]][xg, ], sig2k = sig2k.s0, delta = delta.s0)
 
         ############################################################################################################
 
@@ -531,7 +604,7 @@ MALNIRT <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin 
           reset <- TRUE
         }
         reset.count <- reset.count + 1
-        if(reset.count == 5) {
+        if(reset.count == 10) {
           return(NULL)
         }
         e$initMar(e)

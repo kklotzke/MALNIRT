@@ -17,10 +17,12 @@ simdataLNRT <- function(N, K, delta, lambda, zeta.offset = 0){
   zeta <- zeta - mean(zeta) + zeta.offset
 
   RT <- matrix(0, ncol=K, nrow=N)
-  for(ii in 1:N) {
-    RT[ii,]	<- mvtnorm::rmvnorm(1, mean=lambda - zeta[ii], sigma=Sigma) #nr replications
-    #RT[ii,]	<- mvrnorm(1,mu=as.vector(lambda - zeta[ii]),Sigma=Sigma, empirical=FALSE) #nr replications
-  }
+  #for(ii in 1:N) {
+    #RT[ii,]	<- mvtnorm::rmvnorm(1, mean=lambda - zeta[ii], sigma=Sigma) #nr replications
+  #  RT[ii,]	<- mvrnorm(1,mu=as.vector(lambda - zeta[ii]),Sigma=Sigma, empirical=TRUE) #nr replications
+  #}
+  RT <- MASS::mvrnorm(N, mu = lambda + zeta.offset, Sigma = Sigma, empirical = TRUE)
+
   mul <- mean(lambda)
   sigmal <- var(lambda)
 
@@ -59,7 +61,7 @@ simdataIRT <- function(N, K, tau, beta, theta.offset = 0){
 }
 
 #' @export
-simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, theta.offset = 0){
+simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, theta.offset = 0, rep = 1){
 #data.lnirt <- simdataLNIRT(N = 10, K = 5, delta = c(0,0.1), tau = c(0,0.2), nu = rep(-0.25, 5))
 
   # Covariance matrix RTs
@@ -130,10 +132,13 @@ simdataLNIRT <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, th
     #Z_i <- mvtnorm::rmvnorm(1, mean=means.irt, sigma=Sigma.irt)
     #RT_i <- mvtnorm::rmvnorm(1, mean=means.lnrt, sigma=Sigma.lnrt)
     #RTZ[ii, ] <- cbind(Z_i, RT_i)
-    RTZ[ii,]	<- mvtnorm::rmvnorm(1, mean=means, sigma=Sigma) #nr replications
-    #RTZ[ii,]	<- MASS::mvrnorm(1, mu=as.numeric(means), Sigma=Sigma, empirical = FALSE) #nr replications
+    #RTZ[ii,]	<- colMeans(mvtnorm::rmvnorm(1000, mean=means, sigma=Sigma)) #nr replications
+    #RTZ[ii,]	<- mvtnorm::rmvnorm(1, mean=means, sigma=Sigma) #nr replications
+    #RTZ[ii,]	<- MASS::mvrnorm(1, mu=as.numeric(means), Sigma=Sigma, empirical = TRUE) #nr replications
     #RT[ii,]	<- mvrnorm(1,mu=as.vector(lambda - zeta[ii]),Sigma=Sigma, empirical=FALSE) #nr replications
   }
+  RTZ	<- MASS::mvrnorm(N, mu=c(theta.offset - beta, lambda - zeta.offset), Sigma=Sigma, empirical = TRUE)
+
 
   # Truncate for binary outcome
   RTY <- RTZ

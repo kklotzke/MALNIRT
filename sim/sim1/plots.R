@@ -1,9 +1,9 @@
 setwd("~/Desktop/github_kklotzke/MALNIRT/sim/sim1")
 
-load(file = "simulation1_250317_1.RData")
-load(file = "simulation2_250317_2.RData")
-load(file = "simulation3_250317_3.RData")
-load(file = "simulation4_250317_4.RData")
+load(file = "simulation1_250328_1.RData")
+load(file = "simulation1_250328_2.RData")
+load(file = "simulation1_250328_3.RData")
+load(file = "simulation1_250328_4.RData")
 
 out.nu1 <- rbind(sim.nu1_1, sim.nu2_1, sim.nu3_1, sim.nu4_1)
 out.nu2 <- rbind(sim.nu1_2, sim.nu2_2, sim.nu3_2, sim.nu4_2)

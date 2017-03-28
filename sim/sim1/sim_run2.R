@@ -5,8 +5,8 @@ setwd("~/Desktop/github_kklotzke/MALNIRT/sim/sim1")
 
 sim.N <- 500
 sim.K <- 10
-sim.XG <- 1000
-sim.rep <- 2
+sim.XG <- 600
+sim.rep <- 10
 sim.delta2_1 <- sim.delta2_2 <- sim.tau2_1 <- sim.tau2_2 <- numeric(sim.rep)
 sim.theta2_2 <- sim.zeta2_2 <- numeric(sim.rep)
 sim.nu2_1 <- sim.nu2_2 <- matrix(NA, nrow = sim.rep, ncol = sim.K)
@@ -15,12 +15,13 @@ sim.cor.beta2 <- sim.cor.lambda2 <- sim.cor.sig2k2_1 <- sim.cor.sig2k2_2 <- nume
 #nu <- seq(from = -0.4, to = 0.2, length.out = sim.K)# #rep(-0.15,sim.K)
 nu2_1 <- c(seq(0.2, -0.05, length.out = 3), seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3))
 nu2_2 <- c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2))
+#nu2_1 <- nu2_2 <- rep(-0.1, sim.K)
 delta2_1 <- c(0.2, 0)
 delta2_2 <- c(0.3, 0)
 tau2_1 <- c(0.2, 0)
 tau2_2 <- c(0.3, 0)
-theta2_2 <- 0.4
-zeta2_2 <- 0.2
+theta2_2 <- -1
+zeta2_2 <- 0.1
 
 group <- c(rep(1, 500), rep(2, 500))
 out.list1 <- list()
@@ -50,8 +51,8 @@ system.time({
       sim.zeta2_2[ii] <- out$post.means[[2]]$zeta
 
 
-      sim.beta2[ii, ] <- out$post.means[[1]]$beta
-      sim.lambda2[ii, ] <- out$post.means[[1]]$lambda
+      sim.beta2[ii, ] <- (out$post.means[[1]]$beta + out$post.means[[2]]$beta)/2
+      sim.lambda2[ii, ] <- (out$post.means[[1]]$lambda + out$post.means[[2]]$lambda)/2
       sim.cor.beta2[ii] <- cor(dat1$beta, sim.beta2[ii, ])
       sim.cor.lambda2[ii] <- cor(dat1$lambda, sim.lambda2[ii, ])
       sim.cor.sig2k2_1[ii] <- cor(dat1$sig2k,  out$post.means[[1]]$sig2k)
@@ -61,7 +62,7 @@ system.time({
       out.list1[[ii]] <- out
       save(out.list1, sim.tau2_1, sim.delta2_1, sim.nu2_1, sim.tau2_2, sim.delta2_2, sim.nu2_2, sim.theta2_2, sim.zeta2_2,
            sim.cor.beta2, sim.cor.lambda2, sim.cor.sig2k2_1, sim.cor.sig2k2_2,
-           tau2_1, delta2_1, nu2_1, tau2_2, delta2_2, nu2_2, theta2_2, zeta2_2, file = "simulation2_250317_2.RData")
+           tau2_1, delta2_1, nu2_1, tau2_2, delta2_2, nu2_2, theta2_2, zeta2_2, file = "simulation1_250328_2.RData")
       ii <- ii + 1
     }
   }

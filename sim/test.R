@@ -2,7 +2,14 @@ dat4.1 <-  simdataLNIRT(N = 500, K = 10, delta = c(0.2,0), tau = c(0.2,0), nu = 
                                                                                    seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3)))
 dat4.2 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
                        nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)),
-                       lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = 1, zeta.offset = 0)
+                       lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = 0, zeta.offset = 0)
+print(mean(dat4.2$Z) + mean(dat4.1$beta))
+
+#dat4.1 <-  simdataLNIRT(N = 500, K = 10, delta = c(0.2,0), tau = c(0.2,0), nu = rep(0,10))
+#dat4.2 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
+#                       nu = rep(0,10), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = -0.2, zeta.offset = 0.4)
+
+
 #dat4.3 <- simdataLNIRT(N = 350, K = 10, delta = c(0.15,0), tau = c(0.15,0), nu = rep(0,10), lambda = dat4.1$lambda, beta = dat4.1$beta, theta.offset = -0.2, zeta.offset = -0.45)
 group <- c(rep(1, 500), rep(2, 500))#, rep(3, 350))
 y.all <- rbind(dat4.1$Y, dat4.2$Y)#, dat4.3$Y)
@@ -10,9 +17,9 @@ rt.all <- rbind(dat4.1$RT, dat4.2$RT)#, dat4.3$RT)
 
 
 
-out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 1000, est.person = FALSE)
-summary(out4$post.means[[1]]$beta - dat4.1$beta)
-summary(out4$post.means[[1]]$lambda - dat4.1$lambda)
+out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE)
+summary((out4$post.means[[1]]$beta + out4$post.means[[2]]$beta)/2 - dat4.1$beta)
+summary((out4$post.means[[1]]$lambda + out4$post.means[[2]]$lambda)/2 - dat4.1$lambda)
 c(out4$post.means[[1]]$theta, out4$post.means[[2]]$theta)#, out4$post.means[[3]]$theta)
 c(out4$post.means[[1]]$zeta, out4$post.means[[2]]$zeta)#, out4$post.means[[3]]$zeta)
 c(out4$post.means[[1]]$tau, out4$post.means[[2]]$tau)#, out4$post.means[[3]]$tau)
@@ -26,31 +33,77 @@ cor(out4$post.means[[2]]$sig2k, dat4.2$sig2k)
 
 
 
-dat4 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
-                     nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)))
 
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4.2, XG = 1000, burnin = 0.1, est.person = FALSE)
-summary(out5$post.means[[1]]$beta - dat4.1$beta)
+
+dat5 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = rep(-0.1,10))
+dat5.1 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = rep(-0.15,10), beta = dat5$beta, lambda = dat5$lambda, theta.offset = 0.5)
+print(mean(dat5.1$Z) + mean(dat5$beta))
+
+
+group <- c(rep(1, 500), rep(2, 500))#, rep(3, 350))
+y.all <- rbind(dat5$Y, dat5.1$Y)#, dat4.3$Y)
+rt.all <- rbind(dat5$RT, dat5.1$RT)#, dat4.3$RT)
+out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE)
+summary((out4$post.means[[1]]$beta + out4$post.means[[2]]$beta)/2 - dat5$beta)
+mean(out4$post.means[[1]]$beta)
+mean(out4$post.means[[2]]$beta)
+summary((out4$post.means[[1]]$lambda + out4$post.means[[2]]$lambda)/2 - dat5$lambda)
+c(out4$post.means[[1]]$theta, out4$post.means[[2]]$theta)#, out4$post.means[[3]]$theta)
+c(out4$post.means[[1]]$zeta, out4$post.means[[2]]$zeta)#, out4$post.means[[3]]$zeta)
+c(out4$post.means[[1]]$tau, out4$post.means[[2]]$tau)#, out4$post.means[[3]]$tau)
+c(out4$post.means[[1]]$delta, out4$post.means[[2]]$delta)#, out4$post.means[[3]]$delta)
+rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu)#, out4$post.means[[3]]$nu)
+rowMeans(rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu))#, out4$post.means[[3]]$nu))
+
+plot(1:1200, out4$samples[[2]]$theta)
+
+dattmp <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
+                     nu = rep(-0.1,10), theta.offset = 0)
+
+dat4 <- simdataLNIRT(N = 8000, K = 10, delta = c(0.3,0), tau = c(0.3,0),
+                       nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)), theta.offset = 1)
+
+diag(cov(dat4$Z, dat4$RT))
+print(mean(dat4$Z))
+
+out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 600, burnin = 0.1, est.person = FALSE)
+summary(out5$post.means[[1]]$beta - dat4$beta)
 summary(out5$post.means[[1]]$lambda - dat4$lambda)
 summary(out5$post.means[[1]]$nu - dat4$nu)
 summary(out5$post.means[[1]]$sig2k - dat4$sig2k)
 out5$post.means[[1]]$tau
 out5$post.means[[1]]$delta
 cor(out5$post.means[[1]]$sig2k, dat4$sig2k)
+print(mean(out5$post.means[[1]]$beta))
 
-#dat4 <- dat4.1
+out5$post.means[[1]]$beta.sd
+out5$post.means[[1]]$lambda.sd
+out5$post.means[[1]]$nu.sd
+out5$post.means[[1]]$sig2k.sd
+out5$post.means[[1]]$tau.sd
+out5$post.means[[1]]$delta.sd
+
+
+
+
+
+plot(1:10, out5$post.means[[1]]$beta + 1, ylim=c(-3,3))
+points(dat4$beta, col="blue")
+abline(0,0)
+
 out5l <- LNIRT(RT = RT, Y = Y, data = dat4, XG = 1000, td = TRUE)
 s.out5l <- summary(out5l)
 summary(s.out5l$idiff - dat4$beta)
-summary(s.out5l$tintens - dat4$lambda)
-summary(s.out5l$estsigma2 - dat4$sig2k)
+summary(s.out5l$tintens - dat5$lambda)
+summary(s.out5l$estsigma2 - dat5$sig2k)
 s.out5l$SigmaPcor
 s.out5l$SigmaIcor
-cor(s.out5l$estsigma2, dat4$sig2k)
+cor(s.out5l$estsigma2, dat5$sig2k)
 
 
-out5i <- MAIRT(Y = Y, data = dat4.2, XG = 1000, est.person = FALSE)
-summary(out5i$beta - dat4.2$beta)
+out5i <- MAIRT(Y = Y, data = dat2, XG = 500, est.person = FALSE)
+summary(out5i$beta - dat4$beta + 1)
+print(mean(out5i$beta))
 out5i$tau
 
 out5li <- MALNRT(RT = RT, data = dat4.2, XG = 1000, est.person = FALSE)
@@ -73,12 +126,13 @@ plot(1:10, dat4$sig2k, col="black")
 points(out5$post.means[[1]]$sig2k, col="blue", pch=5)
 points(s.out5l$estsigma2, col="green", pch=2)
 
-
-plot(1:10000, out5$samples[[1]]$tau, type = "l")
-plot(1:2000, out5$samples[[1]]$nu.22, type = "l")
-plot(1:2000, out5$samples[[1]]$sig2k.1, type = "l")
-plot(1:2000, out5$samples[[1]]$sig2k.2, type = "l")
-plot(1:2000, out5$samples[[1]]$beta.8, type = "l")
+hist(out5$samples[[1]]$tau, breaks=60)
+plot(1:1200, out5$samples[[1]]$tau, type = "l")
+plot(1:1200, out5$samples[[1]]$delta, type = "l")
+plot(1:1200, out5$samples[[1]]$beta.1, type = "l")
+plot(1:1200, out5$samples[[1]]$nu.1, type = "l")
+plot(1:1200, out5$samples[[1]]$sig2k.2, type = "l")
+plot(1:1200, out5$samples[[1]]$beta.8, type = "l")
 
 
 

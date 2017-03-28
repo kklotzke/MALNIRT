@@ -1,0 +1,26 @@
+Simulated, Estimated (SD) 
+Tau_1: 0.2, 0.199 (0.009)
+Tau_2: 0.3, 0.313 (0.013)
+Delta_1: 0.2, 0.2 (0.006)
+Delta_2: 0.3, 0.3 (0.008)
+theta_2: -0.5, -0.468 (0.018)
+zeta_2: 0.5, 0.5 (0.01)
+
+Cor. beta: 0.9999408
+Cor. lambda: 1
+Cor. sig2k_1: 0.9999996
+Cor. sig2k_2: 0.9999997
+
+Estimated nu_1 - Simulated nu_1 (Means)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.013420 -0.009406 -0.002572  0.005026  0.021120  0.036790 
+
+ Estimated nu_1 (SD) 
+0.021 0.02 0.018 0.03 0.035 0.016 0.024 0.021 0.016 0.017 
+
+Estimated nu_2 - Simulated nu_2 (Means)
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.011370 -0.003995  0.004363  0.007025  0.013890  0.047410 
+
+ Estimated nu_2 (SD) 
+0.019 0.019 0.02 0.032 0.03 0.019 0.02 0.018 0.022 0.018 

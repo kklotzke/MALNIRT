@@ -145,8 +145,11 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
         beta1 <- beta.min1[-kk]
         Z1 <- Z[, -kk] # Latent responses to all but the current item
         mu.Z <- (mean(theta.min1) - beta.min1[kk]) + (Z1 - (theta1 - beta1)) %*% Sjc
-        Z[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y[, kk] == 0]
-        Z[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y[, kk] == 1]
+        #Z[Y[, kk]==0, kk] <- qnorm(runif(N, 0, pnorm(0, mu.Z, sqrt(var.Z))), mu.Z, sqrt(var.Z))[Y[, kk] == 0]
+        #Z[Y[, kk]==1, kk] <- qnorm(runif(N, pnorm(0, mu.Z, sqrt(var.Z)),1), mu.Z, sqrt(var.Z))[Y[, kk] == 1]
+
+        Z[Y[, kk]==0, kk] <- extraDistr::rtnorm(n = length(mu.Z[Y[, kk]==0]), mean = mu.Z[Y[, kk]==0], sd = sqrt(var.Z), a = -Inf, b = 0)
+        Z[Y[, kk]==1, kk] <- extraDistr::rtnorm(n = length(mu.Z[Y[, kk]==1]), mean = mu.Z[Y[, kk]==1], sd = sqrt(var.Z), a = 0, b = Inf)
         #boundary <- 0
         #Z[Y[, kk]==0, kk] <- truncnorm::rtruncnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), a = -Inf, b = boundary)[Y[, kk]==0]
         #Z[Y[, kk]==1, kk] <- truncnorm::rtruncnorm(n = N, mean = mu.Z, sd = sqrt(var.Z), a = boundary, b = Inf)[Y[, kk]==1]
@@ -203,6 +206,7 @@ MAIRT <- function(Y, Group = NULL, data, XG = 1000, burnin = 0.10, inits.1 = NUL
 
       ### Sample item difficulty paramaters ###
 
+      var.gen[1] <- 1/(1 + tau.min1[1])
       # Hyper parameters
       SS <- b.beta + sum((beta.min1 - mean(beta.min1))^2) + (K*n0.beta*mean(beta.min1))/(2*(K + n0.beta))
       var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
