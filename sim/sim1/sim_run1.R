@@ -6,7 +6,7 @@ setwd("~/Desktop/github_kklotzke/MALNIRT/sim/sim1")
 sim.N <- 500
 sim.K <- 10
 sim.XG <- 600
-sim.rep <- 10
+sim.rep <- 15
 sim.delta1_1 <- sim.delta1_2 <- sim.tau1_1 <- sim.tau1_2 <- numeric(sim.rep)
 sim.theta1_2 <- sim.zeta1_2 <- numeric(sim.rep)
 sim.nu1_1 <- sim.nu1_2 <- matrix(NA, nrow = sim.rep, ncol = sim.K)
@@ -37,7 +37,7 @@ system.time({
     y.all <- rbind(dat1$Y, dat2$Y)
     rt.all <- rbind(dat1$RT, dat2$RT)
 
-    out <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = sim.XG, est.person = FALSE)
+    out <- MALNIRT3Steps(Y = y.all, RT = rt.all, group = group, XG = sim.XG, est.person = FALSE)
 
     if(!is.null(out)) {
       sim.delta1_1[ii] <- out$post.means[[1]]$delta
@@ -62,7 +62,7 @@ system.time({
       out.list1[[ii]] <- out
       save(out.list1, sim.tau1_1, sim.delta1_1, sim.nu1_1, sim.tau1_2, sim.delta1_2, sim.nu1_2, sim.theta1_2, sim.zeta1_2,
            sim.cor.beta1, sim.cor.lambda1, sim.cor.sig2k1_1, sim.cor.sig2k1_2,
-           tau1_1, delta1_1, nu1_1, tau1_2, delta1_2, nu1_2, theta1_2, zeta1_2, file = "simulation1_250328_1.RData")
+           tau1_1, delta1_1, nu1_1, tau1_2, delta1_2, nu1_2, theta1_2, zeta1_2, file = "simulation1_010417_1.RData")
       ii <- ii + 1
     }
   }

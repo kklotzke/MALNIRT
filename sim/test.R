@@ -34,39 +34,48 @@ cor(out4$post.means[[2]]$sig2k, dat4.2$sig2k)
 
 
 
+nu1_1 <- c(seq(0.2, -0.05, length.out = 3), seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3))
+nu1_2 <- c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2))
+dat1 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_1)
+dat2 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_2, beta = dat1$beta, lambda = dat1$lambda, theta.offset = 0.5)
 
-dat5 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = rep(-0.1,10))
-dat5.1 <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = rep(-0.15,10), beta = dat5$beta, lambda = dat5$lambda, theta.offset = 0.5)
-print(mean(dat5.1$Z) + mean(dat5$beta))
-
-
-group <- c(rep(1, 500), rep(2, 500))#, rep(3, 350))
-y.all <- rbind(dat5$Y, dat5.1$Y)#, dat4.3$Y)
-rt.all <- rbind(dat5$RT, dat5.1$RT)#, dat4.3$RT)
-out4 <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE)
-summary((out4$post.means[[1]]$beta + out4$post.means[[2]]$beta)/2 - dat5$beta)
-mean(out4$post.means[[1]]$beta)
-mean(out4$post.means[[2]]$beta)
-summary((out4$post.means[[1]]$lambda + out4$post.means[[2]]$lambda)/2 - dat5$lambda)
+group <- c(rep(1, 1000), rep(2, 1000))#, rep(3, 350))
+y.all <- rbind(dat1$Y, dat2$Y)#, dat4.3$Y)
+rt.all <- rbind(dat1$RT, dat2$RT)#, dat4.3$RT)
+out4 <- MALNIRT3Steps(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE)
+summary((out4$post.means[[1]]$beta + out4$post.means[[2]]$beta)/2 - dat1$beta)
+#mean(out4$post.means[[1]]$beta)
+#mean(out4$post.means[[2]]$beta)
+summary((out4$post.means[[1]]$lambda + out4$post.means[[2]]$lambda)/2 - dat1$lambda)
 c(out4$post.means[[1]]$theta, out4$post.means[[2]]$theta)#, out4$post.means[[3]]$theta)
 c(out4$post.means[[1]]$zeta, out4$post.means[[2]]$zeta)#, out4$post.means[[3]]$zeta)
 c(out4$post.means[[1]]$tau, out4$post.means[[2]]$tau)#, out4$post.means[[3]]$tau)
 c(out4$post.means[[1]]$delta, out4$post.means[[2]]$delta)#, out4$post.means[[3]]$delta)
-rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu)#, out4$post.means[[3]]$nu)
-rowMeans(rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu))#, out4$post.means[[3]]$nu))
+rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu) - rbind(nu1_1, nu1_2)#, out4$post.means[[3]]$nu)
+rowMeans(rbind(out4$post.means[[1]]$nu, out4$post.means[[2]]$nu)) #, out4$post.means[[3]]$nu))
+cor(out4$post.means[[1]]$sig2k, dat1$sig2k)
+cor(out4$post.means[[2]]$sig2k, dat2$sig2k)
+summary(out4$post.means[[1]]$sig2k - dat1$sig2k)
+summary(out4$post.means[[2]]$sig2k - dat2$sig2k)
 
-plot(1:1200, out4$samples[[2]]$theta)
+plot(1:10000, out4$samples[[1]]$nu.5, type="l")
+
+
+
 
 dattmp <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
                      nu = rep(-0.1,10), theta.offset = 0)
 
-dat4 <- simdataLNIRT(N = 8000, K = 10, delta = c(0.3,0), tau = c(0.3,0),
-                       nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)), theta.offset = 1)
+dat4 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.3,0), tau = c(0.5,0),
+                       nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)), theta.offset = -1, zeta.offset = 1)
+
+#dat4 <- simdataLNIRT(N = 250, K = 10, delta = c(0,0), tau = c(0.8,0),
+#                     nu = rep(0,10), theta.offset = -1, zeta.offset = 1)
 
 diag(cov(dat4$Z, dat4$RT))
 print(mean(dat4$Z))
 
-out5 <- MALNIRT(Y = Y, RT = RT, data = dat4, XG = 600, burnin = 0.1, est.person = FALSE)
+out5 <- MALNIRT3Steps(Y = Y, RT = RT, data = dat4, XG = 600, burnin = 0.1, est.person = FALSE)
 summary(out5$post.means[[1]]$beta - dat4$beta)
 summary(out5$post.means[[1]]$lambda - dat4$lambda)
 summary(out5$post.means[[1]]$nu - dat4$nu)
@@ -75,6 +84,8 @@ out5$post.means[[1]]$tau
 out5$post.means[[1]]$delta
 cor(out5$post.means[[1]]$sig2k, dat4$sig2k)
 print(mean(out5$post.means[[1]]$beta))
+print(mean(out5$post.means[[1]]$lambda))
+
 
 out5$post.means[[1]]$beta.sd
 out5$post.means[[1]]$lambda.sd

@@ -1,9 +1,9 @@
 setwd("~/Desktop/github_kklotzke/MALNIRT/sim/sim1")
 
-load(file = "simulation1_250328_1.RData")
-load(file = "simulation1_250328_2.RData")
-load(file = "simulation1_250328_3.RData")
-load(file = "simulation1_250328_4.RData")
+load(file = "simulation1_010417_1.RData")
+load(file = "simulation1_010417_2.RData")
+load(file = "simulation1_010417_3.RData")
+load(file = "simulation1_010417_4.RData")
 
 out.tau1 <- na.omit(c(sim.tau1_1, sim.tau2_1, sim.tau3_1, sim.tau4_1))
 out.delta1 <- na.omit(c(sim.delta1_1, sim.delta2_1, sim.delta3_1, sim.delta4_1))

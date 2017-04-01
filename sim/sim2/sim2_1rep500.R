@@ -24,10 +24,10 @@ dat2 <- simdataLNIRT(N = sim.N, K = sim.K, delta = delta2, tau = tau2, nu = nu2,
 y.all <- rbind(dat1$Y, dat2$Y)
 rt.all <- rbind(dat1$RT, dat2$RT)
 
-out <- MALNIRT(Y = y.all, RT = rt.all, group = group, XG = sim.XG, est.person = FALSE)
-save(out, delta1, delta2, tau1, tau2, nu1, nu2, theta2, zeta2, dat1, dat2, file = "simulation2_280317_500.Rdata")
+out <- MALNIRT3Steps(Y = y.all, RT = rt.all, group = group, XG = sim.XG, est.person = FALSE)
+save(out, delta1, delta2, tau1, tau2, nu1, nu2, theta2, zeta2, dat1, dat2, file = "simulation2_310317_2__500.Rdata")
 
-load("simulation2_280317_500.Rdata")
+#load("simulation2_310317_500.Rdata")
 out.delta1 <- out$post.means[[1]]$delta
 out.tau1 <- out$post.means[[1]]$tau
 out.nu1 <- out$post.means[[1]]$nu
@@ -42,7 +42,7 @@ out.cor.sig2k1 <- cor(dat1$sig2k, out$post.means[[1]]$sig2k)
 out.cor.sig2k2 <- cor(dat2$sig2k, out$post.means[[2]]$sig2k)
 
 
-sink("simulation2_280317_500.txt")
+sink("simulation2_310317_2_500.txt")
 cat("Simulated, Estimated (SD) \n")
 cat("Tau_1: ", tau1[1], ", ", round(mean(out.tau1), digits = 3), " (", round(out$post.means[[1]]$tau.sd, digits = 3), ")\n", sep = "")
 cat("Tau_2: ", tau2[1], ", ", round(mean(out.tau2), digits = 3), " (", round(out$post.means[[2]]$tau.sd, digits = 3), ")\n", sep = "")

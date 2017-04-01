@@ -49,7 +49,7 @@ sampleTheta_i <- function(Z.g, beta, tau.g, theta_i.min1)
 }
 
 #' @export
-sampleZ <- function(Y, Z, ZT, mu.Z, mu.ZT, partMatrix, u, theta, likelihood = FALSE)
+sampleZ <- function(Y, Z, mu.Z, mu.ZT, partMatrix, likelihood = FALSE)
 {
   K <- ncol(Z)
   N <- nrow(Z)
@@ -58,9 +58,9 @@ sampleZ <- function(Y, Z, ZT, mu.Z, mu.ZT, partMatrix, u, theta, likelihood = FA
   lik_k <- rep(NA, K) # Probability density for Z_k
   tmp <- vector("list", K)
   for (k in 1:K) {
-    #tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(Z[, -k] - mu.Z[, -k])
-    tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(ZT[, -k] - mu.ZT[, -k])
-    mu.Z[, k] <-  mu.ZT[, k] +  tmp[[k]]
+    tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(Z[, -k] - mu.ZT[, -k])
+    #tmp[[k]] <- partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% t(ZT[, -k] - mu.ZT[, -k])
+    mu.Z[, k] <- mu.ZT[, k] +  tmp[[k]]
     var.Z[k] <- partMatrix[[k]]$B11 - partMatrix[[k]]$B12 %*% partMatrix[[k]]$B22.inv %*% partMatrix[[k]]$B21
 
     if(is.nan(var.Z[k]) || (var.Z[k] < 0))
@@ -104,7 +104,7 @@ sampleBeta <- function(Z, beta, theta = 0, tau, a.beta = 0.5, b.beta = 0.5, n0.b
   # Hyper parameters
   SS <- b.beta + sum((beta - mean(beta))^2) + (K*n0.beta*mean(beta))/(2*(K + n0.beta))
   var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
-  mu0.beta <- rnorm(1, (-K*var0.beta*mean(beta))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
+  mu0.beta <- rnorm(1, (K*var0.beta*mean(beta))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
   #print(mu0.beta)
   var0.beta <- 10^10
@@ -206,6 +206,31 @@ sampleZeta <- function(RT, lambda, sig2k, delta)
 
   return(zeta = zeta)
 }
+
+#' @export
+sampleSig2 <- function(RT, lambda, zeta, delta, a.sig2 = 0.001, b.sig2 = 0.001)
+{
+  K <- ncol(RT)
+  N <- nrow(RT)
+
+  errors <- RT - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) + mean(zeta)
+  mean.person <- apply(errors, 1, mean)
+
+  ### Sample measurement error variance parameters ###
+
+  # Within sum of squares
+  SSw.sig2 <- sum(apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),1,sum))
+  SSwk.sig2k <- apply((errors - matrix(mean.person,ncol=K,nrow=N))*(errors - matrix(mean.person,ncol=K,nrow=N)),2,sum)
+
+  # Draw mean measurement error variance
+  sig2 <- extraDistr::rinvgamma(1, a.sig2 + (N*(K-1))/2, b.sig2 + SSw.sig2/2)
+
+  # Draw K individual measurement error variances
+  sig2k <- extraDistr::rinvgamma(K, a.sig2 + (N*(K-1)/K)/2, b.sig2 + SSwk.sig2k/2)
+
+  return(list(sig2 = sig2, sig2k = sig2k))
+}
+
 
 #' @export
 sampleMarAbilityModel <- function(Y, Z.mar, beta.mar, theta.mar, tau.mar, firstGroup = TRUE, init = TRUE, a.beta = 0.5, b.beta = 0.5, n0.beta = 1)
@@ -330,7 +355,7 @@ sampleMarSpeedModel <- function(RT, lambda, zeta = 0, delta.mar, sig2k.mar, a.si
 }
 
 #' @export
-sampleCorrelationNu <- function(r, x, var.Z)
+sampleCorrelationNu <- function(r, x, var.Z, Z)
 {
   K <- ncol(r)
   N <- nrow(r)
@@ -345,19 +370,13 @@ sampleCorrelationNu <- function(r, x, var.Z)
     for (i in 1:N) {
       tmp1[k] <- tmp1[k] + x[i, k] * 1/var.Z[k] * x[i, k]
       tmp2[k] <- tmp2[k] + x[i, k] * 1/var.Z[k] * r[i, k]
+      #tmp2[k] <- tmp2[k] + x[i, k] * 1/var.Z[k] * Z[i, k]
     }
 
     var.b[k] <- (1/(1/var0.b + tmp1[k]))
     mu.b[k] <- (var.b[k] * (mu0.b/var0.b + tmp2[k]))
     nu[k] <- rnorm(1, mean = mu.b[k], sd = sqrt(var.b[k]))
   }
-#browser()
-#print(mu.b[1:3])
-#print(var.b[1:3])
-#print(mean(diag(cov(r,x))))
-  #print(var.Z)
-
-  #print(mean(nu))
 
   return(list(nu = nu,  q.nu = list(dist = "rnorm", mu = mu.b, sd = sqrt(var.b))))
 }
