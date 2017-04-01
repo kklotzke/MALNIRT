@@ -214,7 +214,7 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
 
 
     if(reinit)
-      e$param[[g]]$nu.cand <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]]))
+      e$param[[g]]$nu.cand <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) * runif(1, 0.8, 1.2) # scale sample covariances
 
     #if(g == 2)
     #  print(e$param[[g]]$tau.cand)
@@ -635,7 +635,7 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
 
         out.mh <- e$doMH(e)
         while (!out.mh$validProposals && !reset) {
-          e$sampleProposals(reinit = FALSE, g = g, e = e)
+          e$sampleProposals(reinit = TRUE, g = g, e = e)
           out.mh <- e$doMH(e)
           reinit.count <- reinit.count + 1
           if(reinit.count == 100) {
