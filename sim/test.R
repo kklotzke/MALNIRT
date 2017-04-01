@@ -36,10 +36,10 @@ cor(out4$post.means[[2]]$sig2k, dat4.2$sig2k)
 
 nu1_1 <- c(seq(0.2, -0.05, length.out = 3), seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3))
 nu1_2 <- c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2))
-dat1 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_1)
-dat2 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_2, beta = dat1$beta, lambda = dat1$lambda, theta.offset = 0.5)
+dat1 <- simdataLNIRT(N = 250, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_1)
+dat2 <- simdataLNIRT(N = 250, K = 10, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_2, beta = dat1$beta, lambda = dat1$lambda, theta.offset = 0.5)
 
-group <- c(rep(1, 1000), rep(2, 1000))#, rep(3, 350))
+group <- c(rep(1, 250), rep(2, 250))#, rep(3, 350))
 y.all <- rbind(dat1$Y, dat2$Y)#, dat4.3$Y)
 rt.all <- rbind(dat1$RT, dat2$RT)#, dat4.3$RT)
 out4 <- MALNIRT3Steps(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE)

@@ -228,7 +228,7 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
   doMH <- function(e)
   {
     ### Step 1 ####
-    reset <- FALSE
+    validProposals <- TRUE
 
     I <- diag(e$K)
     J <- matrix(1, nrow = e$K, ncol = e$K)
@@ -243,12 +243,12 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     # Independent proposals may lead to a matrix that is not (semi-)positive-definite
     chol.ZT.cand <- tryCatch({chol(Sigma.ZT.cand)}, error = function(er) { return(NULL) })
     if(is.null(chol.ZT.cand))
-      reset <- TRUE
+      validProposals <- FALSE
     chol.ZT <- tryCatch({chol(Sigma.ZT)}, error = function(er) { return(NULL) })
     if(is.null(chol.ZT))
-      reset <- TRUE
+      validProposals <- FALSE
 
-    if(!reset) {
+    if(validProposals) {
       # Conditional mean of Z|T for each item
       x <- mu.ZT <- matrix(NA, ncol = K, nrow = Ng)
       for (k in 1:K)
@@ -293,134 +293,76 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         partMatrix.cand[[k]]$B12 <- e$param[[g]]$tau.cand*ones.min1 + ((e$nu.s0[k] / e$sig2k[k]) %*% t(w.min1.cand)) / a
         partMatrix.cand[[k]]$B21 <- t(partMatrix.cand[[k]]$B12)
         partMatrix.cand[[k]]$B22.inv <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
-#
-        # if(k == 10) {
-        #   browser()
-        #   upper <- cbind(partMatrix.cand[[k]]$B11[1], partMatrix.cand[[k]]$B12)
-        #   lower <- cbind(partMatrix.cand[[k]]$B21, partMatrix.cand[[k]]$B22)
-        #   Sigma_ZT2 <- rbind(upper, lower)
-        #   print(all.equal(Sigma.ZT.cand, Sigma_ZT2))
-        # }
+
       }
 
-      # Sample Z
-      #out.Z <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = e$param[[g]]$Z, mu.Z = e$param[[g]]$mu.Z, mu.ZT = mu.ZT, partMatrix, likelihood = FALSE)},
-      #                    error = function(er) { return(NULL) })
+      # Evaluate likelihood 1 vs 2 in Z|T
+      lik <- lik.cand <- 0
+      for (i in 1:Ng) {
+        lik <- lik + sum(mvnfast::dmvn(X = e$param[[g]]$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT, log = TRUE, isChol = TRUE))
+        lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$param[[g]]$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT.cand, log = TRUE, isChol = TRUE))
+      }
 
-      # If current state is faulty, re-initialized chain
-      # if(is.null(out.Z)) {
-      #   reset <- TRUE
-      # }
-    }
+      ar <- exp(lik.cand - lik)
+      if(is.nan(ar) || is.na(ar))
+        ar <- 0
+      else
+        ar <- min(1, ar)
 
-    validProposals <- FALSE
-    if(!reset) {
-
-      #out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = out.Z$Z, mu.Z = out.Z$mu.Z, mu.ZT = mu.ZT, partMatrix.cand, likelihood = FALSE)},
-      #                         error = function(er) {  return(NULL) })
-      #out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = e$param[[g]]$Z, mu.Z = e$param[[g]]$mu.Z, mu.ZT = mu.ZT, partMatrix.cand, likelihood = FALSE)},
-     #                                              error = function(er) {  return(NULL) })
-
-      # if(!is.null(out.Z.cand)) {
-        validProposals <- TRUE
-
-        # Evaluate likelihood 1 vs 2 in Z|T
-        lik <- lik.cand <- 0
-        for (i in 1:Ng) {
-          #lik <- lik + sum(mvnfast::dmvn(X = out.Z$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT, log = TRUE, isChol = TRUE))
-          #lik.cand <- lik.cand + sum(mvnfast::dmvn(X = out.Z.cand$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT.cand, log = TRUE, isChol = TRUE))
-          lik <- lik + sum(mvnfast::dmvn(X = e$param[[g]]$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT, log = TRUE, isChol = TRUE))
-          #lik <- lik + sum(mvnfast::dmvn(X = out.Z$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT, log = TRUE, isChol = TRUE))
-          lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$param[[g]]$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT.cand, log = TRUE, isChol = TRUE))
-          #lik.cand <- lik.cand + sum(mvnfast::dmvn(X = out.Z.cand$Z[i, ], mu = mu.ZT[i, ], sigma = chol.ZT.cand, log = TRUE, isChol = TRUE))
-
-        }
-        #browser()
-
-        ar <- exp(lik.cand - lik)
-        if(is.nan(ar) || is.na(ar))
-          ar <- 0
-        else
-          ar <- min(1, ar)
-      # }
-      # else {
-      #   ar <- 0
-      #   #browser()
-      # }
       u <- runif (1, 0, 1)
 
       if (u <= ar) {
-        #cat("Accept tau|delta|nu: ", e$param[[g]]$tau.cand, "|", e$param[[g]]$delta.cand, "|", e$param[[g]]$nu.cand, "\n")
         e$chains[[c]][[g]][[5]][xg, ] <- tau <- e$param[[g]]$tau.cand
-        #e$param[[g]]$mu.Z <- out.Z.cand$mu.Z
-        #e$param[[g]]$var.Z <- out.Z.cand$var.Z
-        #e$param[[g]]$Z <- out.Z.cand$Z
         e$param[[g]]$mu.ZT <- mu.ZT
-
-        #for (k in 1:K)
-        #  e$param[[g]]$r[, k] <- (out.Z.cand$Z[, k]- muZ[k]) - out.Z.cand$tmp[[k]][1, ]
-        #e$param[[g]]$x <- x
 
         e$mh.accept[g, 1] <- e$mh.accept[g, 1] + 1
         e$mh.accept.last[g, 1] <- e$mh.accept.last[g, 1] + 1
-
       }
       else {
-        #print("Reject tau")
-        #cat("Reject tau|delta|nu: ", e$param[[g]]$tau.cand, "|", e$param[[g]]$delta.cand, "|", e$param[[g]]$nu.cand, "\n")
         e$chains[[c]][[g]][[5]][xg, ] <- tau <- e$tau.s0
-        #e$param[[g]]$mu.Z <- out.Z$mu.Z
-        #e$param[[g]]$var.Z <- out.Z$var.Z
-        #e$param[[g]]$Z <- out.Z$Z
         e$param[[g]]$mu.ZT <- mu.ZT
-
-        #for (k in 1:K)
-        #  e$param[[g]]$r[, k] <- (out.Z$Z[, k]- muZ[k]) - out.Z$tmp[[k]][1, ]
-        #e$param[[g]]$x <- x
-
       }
     }
 
-    if (reset || !validProposals)
-      return(list(reset = reset, validProposals = validProposals))
+    if (!validProposals)
+      return(list(validProposals = validProposals))
 
 
     ### Step 2 ###
-    if (!reset) {
-      a.cand <- 1/e$param[[g]]$delta.cand + sum(1/e$sig2k)
-      Sigma.TZ <- diag(e$sig2k - e$nu.s0^2) + J*e$delta.s0 + (e$nu.s0 %*% t(e$nu.s0)) / (1 / tau + K)
-      Sigma.TZ.cand <- diag(e$sig2k - e$nu.s0^2) + J*e$param[[g]]$delta.cand + (e$nu.s0 %*% t(e$nu.s0)) / (1 / tau + K)
+    a.cand <- 1/e$param[[g]]$delta.cand + sum(1/e$sig2k)
+    Sigma.TZ <- diag(e$sig2k - e$nu.s0^2) + J*e$delta.s0 + (e$nu.s0 %*% t(e$nu.s0)) / (1 / tau + K)
+    Sigma.TZ.cand <- diag(e$sig2k - e$nu.s0^2) + J*e$param[[g]]$delta.cand + (e$nu.s0 %*% t(e$nu.s0)) / (1 / tau + K)
 
-      # Independent proposals may lead to a matrix that is not (semi-)positive-definite
-      chol.TZ.cand <- tryCatch({chol(Sigma.TZ.cand)}, error = function(er) { return(NULL) })
-      if(is.null(chol.TZ.cand))
-        reset <- TRUE
-      chol.TZ <- tryCatch({chol(Sigma.TZ)}, error = function(er) { return(NULL) })
-      if(is.null(chol.TZ))
-        reset <- TRUE
+    # Independent proposals may lead to a matrix that is not (semi-)positive-definite
+    chol.TZ.cand <- tryCatch({chol(Sigma.TZ.cand)}, error = function(er) { return(NULL) })
+    if(is.null(chol.TZ.cand))
+      validProposals <- FALSE
+    chol.TZ <- tryCatch({chol(Sigma.TZ)}, error = function(er) { return(NULL) })
+    if(is.null(chol.TZ))
+      validProposals <- FALSE
 
 
-      if(!reset) {
+    if(validProposals) {
 
-        # Partioned matrix components for each of the K items
-        partMatrix <- partMatrix.cand <- vector("list", e$K)
-        for (k in 1:e$K)
-        {
-          ### MH candidates ###
-          w.min1.cand <- e$nu.s0[-k]/e$sig2k[-k]
-          b.min1.cand <- e$sig2k[-k] / (e$sig2k[-k] - e$nu.s0[-k]^2)
-          c.min1.cand <- 1/tau + sum(b.min1.cand)
-          A.min1.inv.cand <- b.min1.cand*I.min1 - (b.min1.cand %*% t(b.min1.cand)) / c.min1.cand
-          d.min1.cand <- a.cand + t(w.min1.cand) %*% A.min1.inv.cand %*% w.min1.cand
-          g.min1.cand <- sum(e$nu.s0[-k] / (e$sig2k[-k] - e$nu.s0[-k]^2)) / c.min1.cand
-          A.min1.inv_w.cand <- (e$nu.s0[-k] / (e$sig2k[-k] - e$nu.s0[-k]^2) - g.min1.cand*b.min1.cand)
+      # Partioned matrix components for each of the K items
+      partMatrix <- partMatrix.cand <- vector("list", e$K)
+      for (k in 1:e$K)
+      {
+        ### MH candidates ###
+        w.min1.cand <- e$nu.s0[-k]/e$sig2k[-k]
+        b.min1.cand <- e$sig2k[-k] / (e$sig2k[-k] - e$nu.s0[-k]^2)
+        c.min1.cand <- 1/tau + sum(b.min1.cand)
+        A.min1.inv.cand <- b.min1.cand*I.min1 - (b.min1.cand %*% t(b.min1.cand)) / c.min1.cand
+        d.min1.cand <- a.cand + t(w.min1.cand) %*% A.min1.inv.cand %*% w.min1.cand
+        g.min1.cand <- sum(e$nu.s0[-k] / (e$sig2k[-k] - e$nu.s0[-k]^2)) / c.min1.cand
+        A.min1.inv_w.cand <- (e$nu.s0[-k] / (e$sig2k[-k] - e$nu.s0[-k]^2) - g.min1.cand*b.min1.cand)
 
-          partMatrix.cand[[k]]$B11 <- 1 + tau - e$nu.s0[k]^2 * (1/e$sig2k[k] - ((1/e$sig2k[k])^2) / a.cand)
-          partMatrix.cand[[k]]$B22 <- (1 - (e$nu.s0[-k]^2) / e$sig2k[-k])*I.min1 + tau*J.min1 + w.min1.cand %*% t(w.min1.cand) / a.cand
-          partMatrix.cand[[k]]$B12 <- tau*ones.min1 + ((e$nu.s0[k] / e$sig2k[k]) %*% t(w.min1.cand)) / a.cand
-          partMatrix.cand[[k]]$B21 <- t(partMatrix.cand[[k]]$B12)
-          partMatrix.cand[[k]]$B22.inv <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
-        }
+        partMatrix.cand[[k]]$B11 <- 1 + tau - e$nu.s0[k]^2 * (1/e$sig2k[k] - ((1/e$sig2k[k])^2) / a.cand)
+        partMatrix.cand[[k]]$B22 <- (1 - (e$nu.s0[-k]^2) / e$sig2k[-k])*I.min1 + tau*J.min1 + w.min1.cand %*% t(w.min1.cand) / a.cand
+        partMatrix.cand[[k]]$B12 <- tau*ones.min1 + ((e$nu.s0[k] / e$sig2k[k]) %*% t(w.min1.cand)) / a.cand
+        partMatrix.cand[[k]]$B21 <- t(partMatrix.cand[[k]]$B12)
+        partMatrix.cand[[k]]$B22.inv <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
+      }
 
       # Conditional mean of Z|T for each item
       x.cand <- mu.ZT.cand <- matrix(NA, ncol = K, nrow = Ng)
@@ -431,215 +373,107 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         e$param[[g]]$uz[, k] <- e$nu.s0[k] * x.cand[, k]
       }
 
-      #out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = e$param[[g]]$Z, mu.Z = e$param[[g]]$mu.Z, mu.ZT = mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
-      #                       error = function(er) {  return(NULL) })
+      mu.TZ <- t(muT + diag(e$nu.s0) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
 
-      validProposals <- FALSE
-      # if(!is.null(out.Z.cand)) {
-         validProposals <- TRUE
+      # Evaluate likelihood 1 vs 2 in Z|T
+      lik <- lik.cand <- 0
+      for (i in 1:Ng) {
+        lik <- lik + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ[i, ], sigma = chol.TZ, log = TRUE, isChol = TRUE))
+        lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ[i, ], sigma = chol.TZ.cand, log = TRUE, isChol = TRUE))
+      }
 
-        mu.TZ <- t(muT + diag(e$nu.s0) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
-        #mu.TZ.cand <- t(muT + diag(e$nu.s0) %*% (diag(K) - J/(1/tau + K)) %*% t(out.Z.cand$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
-        mu.TZ.cand <- t(muT + diag(e$nu.s0) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
+      ar <- exp(lik.cand - lik)
+      if(is.nan(ar) || is.na(ar))
+        ar <- 0
+      else
+        ar <- min(1, ar)
 
-        # Evaluate likelihood 1 vs 2 in Z|T
-        lik <- lik.cand <- 0
-        for (i in 1:Ng) {
-          lik <- lik + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ[i, ], sigma = chol.TZ, log = TRUE, isChol = TRUE))
-          lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ.cand[i, ], sigma = chol.TZ.cand, log = TRUE, isChol = TRUE))
-        }
-
-        ar <- exp(lik.cand - lik)
-        if(is.nan(ar) || is.na(ar))
-          ar <- 0
-        else
-          ar <- min(1, ar)
-      #}
-      # else {
-      #   ar <- 0
-      #   #browser()
-      # }
       u <- runif (1, 0, 1)
 
       if (u <= ar) {
-        #cat("Accept tau|delta|nu: ", e$param[[g]]$tau.cand, "|", e$param[[g]]$delta.cand, "|", e$param[[g]]$nu.cand, "\n")
         e$chains[[c]][[g]][[6]][xg, ] <- delta <- e$param[[g]]$delta.cand
-        #e$param[[g]]$mu.Z <- out.Z.cand$mu.Z
-        #e$param[[g]]$var.Z <- out.Z.cand$var.Z
-        #e$param[[g]]$Z <- out.Z.cand$Z
         e$param[[g]]$mu.ZT <- mu.ZT.cand
-
-        #for(k in 1:K)
-        #  e$param[[g]]$ut[, k] <- mu.TZ.cand[, k] - muT[k]
-
-        #for (k in 1:K)
-        #  e$param[[g]]$r[, k] <- (out.Z.cand$Z[, k]- muZ[k]) - out.Z.cand$tmp[[k]][1, ]
-        #e$param[[g]]$x <- x.cand
 
         e$mh.accept[g, 2] <- e$mh.accept[g, 2] + 1
         e$mh.accept.last[g, 2] <- e$mh.accept.last[g, 2] + 1
 
       }
       else {
-        #print("Reject tau")
-        #cat("Reject tau|delta|nu: ", e$param[[g]]$tau.cand, "|", e$param[[g]]$delta.cand, "|", e$param[[g]]$nu.cand, "\n")
         e$chains[[c]][[g]][[6]][xg, ] <- delta <- e$delta.s0
-       # for(k in 1:K)
-         # e$param[[g]]$ut[, k] <- mu.TZ[, k] - muT[k]
-      }
       }
     }
 
-    if (reset || !validProposals)
-      return(list(reset = reset, validProposals = validProposals))
+    if (!validProposals)
+      return(list(validProposals = validProposals))
 
     ### Step 3 ###
-    if (!reset) {
-      a.cand <- 1/delta + sum(1/e$sig2k)
-      Sigma.TZ <- diag(e$sig2k - e$nu.s0^2) + J*delta + (e$nu.s0 %*% t(e$nu.s0)) / (1 / tau + K)
-      Sigma.TZ.cand <- diag(e$sig2k - e$param[[g]]$nu.cand^2) + J*delta + (e$param[[g]]$nu.cand %*% t(e$param[[g]]$nu.cand)) / (1 / tau + K)
+    a.cand <- 1/delta + sum(1/e$sig2k)
+    Sigma.TZ <- diag(e$sig2k - e$nu.s0^2) + J*delta + (e$nu.s0 %*% t(e$nu.s0)) / (1 / tau + K)
+    Sigma.TZ.cand <- diag(e$sig2k - e$param[[g]]$nu.cand^2) + J*delta + (e$param[[g]]$nu.cand %*% t(e$param[[g]]$nu.cand)) / (1 / tau + K)
 
-      # Independent proposals may lead to a matrix that is not (semi-)positive-definite
-      chol.TZ.cand <- tryCatch({chol(Sigma.TZ.cand)}, error = function(er) { return(NULL) })
-      if(is.null(chol.TZ.cand))
-        reset <- TRUE
-      chol.TZ <- tryCatch({chol(Sigma.TZ)}, error = function(er) { return(NULL) })
-      if(is.null(chol.TZ))
-        reset <- TRUE
+    # Independent proposals may lead to a matrix that is not (semi-)positive-definite
+    chol.TZ.cand <- tryCatch({chol(Sigma.TZ.cand)}, error = function(er) { return(NULL) })
+    if(is.null(chol.TZ.cand))
+      validProposals <- FALSE
+    chol.TZ <- tryCatch({chol(Sigma.TZ)}, error = function(er) { return(NULL) })
+    if(is.null(chol.TZ))
+      validProposals <- FALSE
 
+    if(validProposals) {
 
-      Sigma.ZT <- ( diag(K) + J*tau ) - diag(e$nu.s0) %*% solve( diag(e$sig2k) + J*delta ) %*% t(diag(e$nu.s0))
-      Sigma.ZT.cand <- ( diag(K) + J*tau ) - diag(e$param[[g]]$nu.cand) %*% solve( diag(e$sig2k) + J*delta ) %*% t(diag(e$param[[g]]$nu.cand))
+      # Partioned matrix components for each of the K items
+      partMatrix.cand <- vector("list", e$K)
+      for (k in 1:e$K)
+      {
+        ### MH candidates ###
+        w.min1.cand <- e$param[[g]]$nu.cand[-k]/e$sig2k[-k]
+        b.min1.cand <- e$sig2k[-k] / (e$sig2k[-k] - e$param[[g]]$nu.cand[-k]^2)
+        c.min1.cand <- 1/tau + sum(b.min1.cand)
+        A.min1.inv.cand <- b.min1.cand*I.min1 - (b.min1.cand %*% t(b.min1.cand)) / c.min1.cand
+        d.min1.cand <- a.cand + t(w.min1.cand) %*% A.min1.inv.cand %*% w.min1.cand
+        g.min1.cand <- sum(e$param[[g]]$nu.cand[-k] / (e$sig2k[-k] - e$param[[g]]$nu.cand[-k]^2)) / c.min1.cand
+        A.min1.inv_w.cand <- (e$param[[g]]$nu.cand[-k] / (e$sig2k[-k] - e$param[[g]]$nu.cand[-k]^2) - g.min1.cand*b.min1.cand)
 
-      #Independent proposals may lead to a matrix that is not (semi-)positive-definite
-      chol.ZT.cand <- tryCatch({chol(Sigma.ZT.cand)}, error = function(er) { return(NULL) })
-      if(is.null(chol.ZT.cand))
-        reset <- TRUE
-      chol.ZT <- tryCatch({chol(Sigma.ZT)}, error = function(er) { return(NULL) })
-      if(is.null(chol.ZT))
-        reset <- TRUE
+        partMatrix.cand[[k]]$B11 <- 1 + tau - e$param[[g]]$nu.cand[k]^2 * (1/e$sig2k[k] - ((1/e$sig2k[k])^2) / a.cand)
+        partMatrix.cand[[k]]$B22 <- (1 - (e$param[[g]]$nu.cand[-k]^2) / e$sig2k[-k])*I.min1 + tau*J.min1 + w.min1.cand %*% t(w.min1.cand) / a.cand
+        partMatrix.cand[[k]]$B12 <- tau*ones.min1 + ((e$param[[g]]$nu.cand[k] / e$sig2k[k]) %*% t(w.min1.cand)) / a.cand
+        partMatrix.cand[[k]]$B21 <- t(partMatrix.cand[[k]]$B12)
+        partMatrix.cand[[k]]$B22.inv <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
+      }
 
+      mu.TZ <- t(muT + diag(e$nu.s0) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
+      mu.TZ.cand <- t(muT + diag(e$param[[g]]$nu.cand) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
 
-      if(!reset) {
+      # Evaluate likelihood 1 vs 2 in Z|T
+      lik <- lik.cand <- 0
+      for (i in 1:Ng) {
+        lik <- lik + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ[i, ], sigma = chol.TZ, log = TRUE, isChol = TRUE))
+        lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ.cand[i, ], sigma = chol.TZ.cand, log = TRUE, isChol = TRUE))
+      }
 
-        # Partioned matrix components for each of the K items
-        partMatrix.cand <- vector("list", e$K)
-        for (k in 1:e$K)
-        {
-          ### MH candidates ###
-          w.min1.cand <- e$param[[g]]$nu.cand[-k]/e$sig2k[-k]
-          b.min1.cand <- e$sig2k[-k] / (e$sig2k[-k] - e$param[[g]]$nu.cand[-k]^2)
-          c.min1.cand <- 1/tau + sum(b.min1.cand)
-          A.min1.inv.cand <- b.min1.cand*I.min1 - (b.min1.cand %*% t(b.min1.cand)) / c.min1.cand
-          d.min1.cand <- a.cand + t(w.min1.cand) %*% A.min1.inv.cand %*% w.min1.cand
-          g.min1.cand <- sum(e$param[[g]]$nu.cand[-k] / (e$sig2k[-k] - e$param[[g]]$nu.cand[-k]^2)) / c.min1.cand
-          A.min1.inv_w.cand <- (e$param[[g]]$nu.cand[-k] / (e$sig2k[-k] - e$param[[g]]$nu.cand[-k]^2) - g.min1.cand*b.min1.cand)
+      ar <- exp(lik.cand - lik)
+      if(is.nan(ar) || is.na(ar))
+        ar <- 0
+      else
+        ar <- min(1, ar)
 
-          partMatrix.cand[[k]]$B11 <- 1 + tau - e$param[[g]]$nu.cand[k]^2 * (1/e$sig2k[k] - ((1/e$sig2k[k])^2) / a.cand)
-          partMatrix.cand[[k]]$B22 <- (1 - (e$param[[g]]$nu.cand[-k]^2) / e$sig2k[-k])*I.min1 + tau*J.min1 + w.min1.cand %*% t(w.min1.cand) / a.cand
-          partMatrix.cand[[k]]$B12 <- tau*ones.min1 + ((e$param[[g]]$nu.cand[k] / e$sig2k[k]) %*% t(w.min1.cand)) / a.cand
-          partMatrix.cand[[k]]$B21 <- t(partMatrix.cand[[k]]$B12)
-          partMatrix.cand[[k]]$B22.inv <- A.min1.inv.cand - (A.min1.inv_w.cand %*% t(A.min1.inv_w.cand)) / d.min1.cand[1,1]
-        }
-
-        # Conditional mean of Z|T for each item
-        # x.cand <- mu.ZT <- mu.ZT.cand <- matrix(NA, ncol = K, nrow = Ng)
-        # for (k in 1:K)
-        # {
-        #   x.cand[, k] <- t( (1/e$sig2k[k]) * ( t(e$RTg[[g]][, k] - muT[k]) - (t(1/e$sig2k) %*% (t(e$RTg[[g]]) - matrix(muT, nrow = K, ncol = Ng))) / a.cand ) )
-        #   mu.ZT.cand[, k] <- muZ[k] + e$param[[g]]$nu.cand[k] * x.cand[, k]
-        #   mu.ZT[, k] <- muZ[k] + e$nu.s0 * x.cand[, k]
-        #   e$param[[g]]$uz[, k] <- e$param[[g]]$nu.cand[k] * x.cand[, k]
-        # }
-
-        #out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = e$param[[g]]$Z, mu.Z = e$param[[g]]$mu.Z, mu.ZT = mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
-        #                       error = function(er) {  return(NULL) })
-
-        # out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = out.Z.cand$Z, mu.Z = out.Z.cand$mu.Z, mu.ZT = mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
-        #                        error = function(er) {  return(NULL) })
-        #
-        # out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = out.Z.cand$Z, mu.Z = out.Z.cand$mu.Z, mu.ZT = mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
-        #                        error = function(er) {  return(NULL) })
-
-        validProposals <- FALSE
-        # if(!is.null(out.Z.cand)) {
-          validProposals <- TRUE
-
-          mu.TZ <- t(muT + diag(e$nu.s0) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
-          #mu.TZ.cand <- t(muT + diag(e$param[[g]]$nu.cand) %*% (diag(K) - J/(1/tau + K)) %*% t(out.Z.cand$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
-          mu.TZ.cand <- t(muT + diag(e$param[[g]]$nu.cand) %*% (diag(K) - J/(1/tau + K)) %*% t(e$param[[g]]$Z - matrix(muZ, nrow = Ng, ncol = K, byrow = TRUE)))
-
-          # Evaluate likelihood 1 vs 2 in Z|T
-          lik <- lik.cand <- 0
-          for (i in 1:Ng) {
-            lik <- lik + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ[i, ], sigma = chol.TZ, log = TRUE, isChol = TRUE))
-            lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$RTg[[g]][i, ], mu = mu.TZ.cand[i, ], sigma = chol.TZ.cand, log = TRUE, isChol = TRUE))
-            #lik <- lik + sum(mvnfast::dmvn(X = e$param[[g]]$Z[i, ], mu = e$param[[g]]$mu.ZT[i, ], sigma = chol.ZT, log = TRUE, isChol = TRUE))
-            #lik.cand <- lik.cand + sum(mvnfast::dmvn(X = e$param[[g]]$Z[i, ], mu = mu.ZT.cand[i, ], sigma = chol.ZT.cand, log = TRUE, isChol = TRUE))
-          }
-
-          #cat(lik, "", lik.cand, "\n")
-
-          ar <- exp(lik.cand - lik)
-          if(is.nan(ar) || is.na(ar))
-            ar <- 0
-          else
-            ar <- min(1, ar)
-        # }
-        # else {
-        #   ar <- 0
-        #   #browser()
-        # }
-        u <- runif (1, 0, 1)
-
-        # print(e$nu.s0)
-        # print(e$param[[g]]$nu.cand)
-        # browser()
+      u <- runif (1, 0, 1)
 
 
-        if (u <= ar) {
-          #cat("Accept tau|delta|nu: ", e$param[[g]]$tau.cand, "|", e$param[[g]]$delta.cand, "|", e$param[[g]]$nu.cand, "\n")
-          e$chains[[c]][[g]][[9]][xg, ] <- nu <- e$param[[g]]$nu.cand
-          #e$param[[g]]$mu.Z <- out.Z.cand$mu.Z
-          #e$param[[g]]$var.Z <- out.Z.cand$var.Z
-          #e$param[[g]]$Z <- out.Z.cand$Z
-          #e$param[[g]]$mu.ZT <- mu.ZT.cand
+      if (u <= ar) {
+        e$chains[[c]][[g]][[9]][xg, ] <- nu <- e$param[[g]]$nu.cand
 
-          #or(k in 1:K)
-          #  e$param[[g]]$ut[, k] <- mu.TZ.cand[, k] - muT[k]
+        e$mh.accept[g, 3] <- e$mh.accept[g, 3] + 1
+        e$mh.accept.last[g, 3] <- e$mh.accept.last[g, 3] + 1
 
-          #for (k in 1:K)
-          #  e$param[[g]]$r[, k] <- (out.Z.cand$Z[, k]- muZ[k]) - out.Z.cand$tmp[[k]][1, ]
-          #e$param[[g]]$x <- x.cand
-
-          e$mh.accept[g, 3] <- e$mh.accept[g, 3] + 1
-          e$mh.accept.last[g, 3] <- e$mh.accept.last[g, 3] + 1
-
-        }
-        else {
-          #print("Reject tau")
-          #cat("Reject tau|delta|nu: ", e$param[[g]]$tau.cand, "|", e$param[[g]]$delta.cand, "|", e$param[[g]]$nu.cand, "\n")
-          e$chains[[c]][[g]][[9]][xg, ] <- nu <- e$nu.s0
-          #for(k in 1:K)
-          #  e$param[[g]]$ut[, k] <- mu.TZ[, k] - muT[k]
-        }
+      }
+      else {
+        e$chains[[c]][[g]][[9]][xg, ] <- nu <- e$nu.s0
       }
     }
-#
-#     if(g == 1) {
-#       e$chains[[c]][[g]][[7]][xg, ] <- dat1$sig2k
-#       e$chains[[c]][[g]][[8]][xg, ] <- mean(dat1$sig2)
-#       #e$chains[[c]][[g]][[9]][xg, ] <- dat1$nu
-#     }
-#     else {
-#       e$chains[[c]][[g]][[7]][xg, ] <- dat2$sig2k
-#       e$chains[[c]][[g]][[8]][xg, ] <- mean(dat2$sig2)
-#       #e$chains[[c]][[g]][[9]][xg, ] <- dat2$nu
-#     }
 
-
-    if (reset || !validProposals)
-      return(list(reset = reset, validProposals = validProposals))
+    if (!validProposals)
+      return(list(validProposals = validProposals))
 
     # Sample latent responses based on new set of parameters
     a.cand <- 1/delta + sum(1/e$sig2k)
@@ -669,10 +503,6 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
 
     out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = e$param[[g]]$Z, mu.Z = e$param[[g]]$mu.Z, mu.ZT = mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
                            error = function(er) {  return(NULL) })
-    # for (k in 1:(K-1)) {
-    #   out.Z.cand <- tryCatch({sampleZ(Y = e$Yg[[g]], Z = out.Z.cand$Z, mu.Z = out.Z.cand$mu.Z, mu.ZT = mu.ZT.cand, partMatrix.cand, likelihood = FALSE)},
-    #                          error = function(er) {  return(NULL) })
-    # }
 
     if(is.null(out.Z.cand)) {
       validProposals <- FALSE
@@ -688,11 +518,7 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
       e$param[[g]]$x <- x.cand
     }
 
-    #e$chains[[c]][[g]][[7]][xg, ] <- data$sig2k
-    #e$chains[[c]][[g]][[8]][xg, ] <- mean(data$sig2)
-    #e$chains[[c]][[g]][[9]][xg, ] <- data$nu
-
-    return(list(reset = reset, validProposals = validProposals))
+    return(list(validProposals = validProposals))
 
   }
 
@@ -808,7 +634,7 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         ########################################### Metropolis-Hastings ############################################
 
         out.mh <- e$doMH(e)
-        while (!out.mh$reset && !out.mh$validProposals && !reset) {
+        while (!out.mh$validProposals && !reset) {
           e$sampleProposals(reinit = FALSE, g = g, e = e)
           out.mh <- e$doMH(e)
           reinit.count <- reinit.count + 1
@@ -823,16 +649,11 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
 
         ############################################################################################################
 
-        if(out.mh$reset) {
-          reset <- TRUE
-          #print("Reset")
-        }
 
         g <- g + 1
       }
 
       if(((any(mh.accept/xg < 0.01) || any(mh.accept.last/100 < 0.00)) && (xg%%100 == 0)) || reset) {
-        #print(round(mh.accept.last/100, digits=2))
 
         cat("Reset | MH acceptance rate ", round(mh.accept/xg, digits=2), " | ", round(mh.accept.last/100, digits=2), "\n")
 
