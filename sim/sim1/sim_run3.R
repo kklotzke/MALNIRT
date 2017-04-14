@@ -3,35 +3,37 @@ library(MALNIRT)
 setwd("~/Desktop/github_kklotzke/MALNIRT/sim/sim1")
 #load("beta_lambda.Rdata")
 
+set.seed(3)
 sim.N <- 500
 sim.K <- 10
-sim.XG <- 600
-sim.rep <- 15
+sim.XG <- 1000
+sim.rep <- 5
 sim.delta3_1 <- sim.delta3_2 <- sim.tau3_1 <- sim.tau3_2 <- numeric(sim.rep)
 sim.theta3_2 <- sim.zeta3_2 <- numeric(sim.rep)
 sim.nu3_1 <- sim.nu3_2 <- matrix(NA, nrow = sim.rep, ncol = sim.K)
 sim.beta3 <- sim.lambda3 <- matrix(NA, nrow = sim.rep, ncol = sim.K)
 sim.cor.beta3 <- sim.cor.lambda3 <- sim.cor.sig2k3_1 <- sim.cor.sig2k3_2 <- numeric(sim.rep)
+sim.mh.accept3 <- matrix(0, nrow = 2, ncol = 3)
 #nu <- seq(from = -0.4, to = 0.2, length.out = sim.K)# #rep(-0.15,sim.K)
 nu3_1 <- c(seq(0.2, -0.05, length.out = 3), seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3))
 nu3_2 <- c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2))
 #nu3_1 <- nu3_2 <- rep(-0.1, sim.K)
-delta3_1 <- c(0.2, 0)
-delta3_2 <- c(0.3, 0)
-tau3_1 <- c(0.2, 0)
-tau3_2 <- c(0.3, 0)
-theta3_2 <- -1
-zeta3_2 <- 0.1
+delta3_1 <- c(0.5, 0)
+delta3_2 <- c(0.6, 0)
+tau3_1 <- c(0.5, 0)
+tau3_2 <- c(0.6, 0)
+theta3_2 <- 1
+zeta3_2 <- 0.5
 
 group <- c(rep(1, 500), rep(2, 500))
-out.list1 <- list()
+out.list3 <- list()
 system.time({
   ii <- 1
   while (ii <= sim.rep)
   {
     print(ii)
-    dat1 <- simdataLNIRT(N = sim.N, K = sim.K, delta = delta3_1, tau = tau3_1, nu = nu3_1)#, beta = beta, lambda = lambda)
-    dat2 <- simdataLNIRT(N = sim.N, K = sim.K, delta = delta3_2, tau = tau3_2, nu = nu3_2, beta = dat1$beta, lambda = dat1$lambda,
+    dat1 <- simdataLNIRTP(N = sim.N, K = sim.K, delta = delta3_1[1], tau = tau3_1[1], nu = nu3_1)#, beta = beta, lambda = lambda)
+    dat2 <- simdataLNIRTP(N = sim.N, K = sim.K, delta = delta3_2[1], tau = tau3_2[1], nu = nu3_2, beta = dat1$beta, lambda = dat1$lambda,
                          theta.offset = theta3_2, zeta.offset = zeta3_2)
 
     y.all <- rbind(dat1$Y, dat2$Y)
@@ -58,11 +60,13 @@ system.time({
       sim.cor.sig2k3_1[ii] <- cor(dat1$sig2k,  out$post.means[[1]]$sig2k)
       sim.cor.sig2k3_2[ii] <- cor(dat2$sig2k,  out$post.means[[2]]$sig2k)
 
+      sim.mh.accept3 <- sim.mh.accept3 + out$mh.accept
 
-      out.list1[[ii]] <- out
-      save(out.list1, sim.tau3_1, sim.delta3_1, sim.nu3_1, sim.tau3_2, sim.delta3_2, sim.nu3_2, sim.theta3_2, sim.zeta3_2,
-           sim.cor.beta3, sim.cor.lambda3, sim.cor.sig2k3_1, sim.cor.sig2k3_2,
-           tau3_1, delta3_1, nu3_1, tau3_2, delta3_2, nu3_2, theta3_2, zeta3_2, file = "simulation1_010417_3.RData")
+      out.list3[[ii]] <- out
+      tmp.mh3 <-sim.mh.accept3/ii
+      save(out.list3, sim.tau3_1, sim.delta3_1, sim.nu3_1, sim.tau3_2, sim.delta3_2, sim.nu3_2, sim.theta3_2, sim.zeta3_2,
+           sim.cor.beta3, sim.cor.lambda3, sim.cor.sig2k3_1, sim.cor.sig2k3_2, tmp.mh3,
+           tau3_1, delta3_1, nu3_1, tau3_2, delta3_2, nu3_2, theta3_2, zeta3_2, file = "simulation1_140417_3.RData")
       ii <- ii + 1
     }
   }

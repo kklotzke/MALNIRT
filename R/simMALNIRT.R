@@ -284,3 +284,266 @@ simdataLNIRT2 <- function(N, K, delta, tau, nu, lambda, beta, zeta.offset = 0, t
               Sigma_T.inv = Sigma_T.inv, Sigma_ZT = Sigma_ZT, Sigma_ZT.inv = Sigma_ZT.inv,
               sig2k = sig2k, delta = delta, tau = tau, nu = nu))
 }
+
+
+#' @export
+simdataLNIRTP <- function(N, K, delta, tau, nu, rho = 0, lambda, beta, zeta.offset = 0, theta.offset = 0, empirical = TRUE){
+  #data.lnirt <- simdataLNIRT(N = 10, K = 5, delta = c(0,0.1), tau = c(0,0.2), nu = rep(-0.25, 5))
+
+  # Covariance matrix RTs
+  sig2k <- runif(K, 0.5, 1.5)
+  #sig2k <- sig2k + abs(nu) + 0.01
+  Sigma.lnrt  <- diag(sig2k) #+ delta #diag(sig2k - delta)#diag(rep(0, K)) + delta #diag(sig2k) #+ delta
+
+  # Covariance matrix Responses
+  Sigma.irt  <- diag(rep(1, K)) # + tau# diag(rep(1-tau, K))# diag(rep(0, K)) + tau #diag(rep(1, K))
+
+  # Covariance matrix SAT
+  Sigma.nu <- diag(nu)
+
+  # Covariance matrix RTs + Respones + SAT
+  upper <- cbind(Sigma.irt, Sigma.nu)
+  lower <- cbind(Sigma.nu, Sigma.lnrt)
+  Sigma <-rbind(upper, lower)
+
+  # Item parameters
+  if(missing(beta) && missing(lambda)) {
+    #item.param <- mvtnorm::rmvnorm(K, mean=c(0, 5), sigma=matrix(c(1,0,0,1), nrow = 2, ncol = 2))
+    item.param <- MASS::mvrnorm(K, mu=c(0, 5), Sigma=matrix(c(1,rho,rho,1), nrow = 2, ncol = 2, byrow = TRUE), empirical = empirical)
+    beta <- item.param[, 1]
+    lambda <- item.param[, 2]
+
+    #beta <- rnorm(K, mean = 0, sd = 1)
+    #lambda <- rnorm(K, mean=5, sd=1)
+  }
+
+#   #theta <- zeta <- numeric(N)
+#   theta <- zeta <- matrix(NA, nrow = N, ncol = K)
+#
+#   # tau_k <- runif(K, min = abs(nu) + 0.01, max = abs(nu) + 0.2)
+#   # delta_k <- runif(K, min = abs(nu) + 0.01, max = abs(nu) + 0.2)
+#   #
+#
+#   out <- MASS::mvrnorm(N, mu = c(theta.offset, zeta.offset), Sigma = matrix(c(tau,mean(nu)/K,mean(nu)/K,delta), nrow = 2, ncol = 2, byrow = TRUE), empirical = empirical)
+#   th <- out[, 1]
+#   ze <- out[, 2]
+#
+   Y <- Z <- RT <- matrix(NA, nrow = N, ncol = K)
+#
+#   up <- cbind(diag(rep(1-tau, K)), diag(nu - mean(nu)/K))
+#   low <- cbind(diag(nu - mean(nu)/K), diag(sig2k-delta))
+#   sig <- rbind(up, low)
+# #browser()
+#   e_thze <- MASS::mvrnorm(N, mu=rep(0, 2*K), Sigma=sig, empirical = empirical)
+#   eik_Z <-  MASS::mvrnorm(N, mu=rep(0, K), Sigma=diag(rep(tau, K)), empirical = empirical)
+#   eik_RT <-  MASS::mvrnorm(N, mu=rep(0, K), Sigma=diag(rep(delta, K)), empirical = empirical)
+#   Z <- th - matrix(beta, nrow = N, ncol = K, byrow = TRUE) + e_thze[, 1:K] + eik_Z
+#   RT <- matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - ze + e_thze[, (K+1):(2*K)] + eik_RT
+# #browser()
+#   theta <- Z - theta.offset + matrix(beta, nrow = N, ncol = K, byrow = TRUE) - eik_Z #- e_thze[, 1:K]
+#   zeta <- RT + zeta.offset - matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - eik_RT #- e_thze[, (K+1):(2*K)]
+
+#   var0.theta <- diag(rep(10^10, K))
+#   var0.zeta <- diag(rep(10^10, K))
+#   var0.nu <- 0
+#   up0 <- cbind(matrix(var0.theta, nrow = K, ncol = K), matrix(var0.nu, nrow = K, ncol = K))
+#   low0 <- cbind(matrix(var0.nu, nrow = K, ncol = K), matrix(var0.zeta, nrow = K, ncol = K))
+#   sigma0 <- rbind(up0, low0)
+#
+#   Sigma <- solve((solve(sigma0)) + N*solve(sig))
+#   chol.Sigma <- chol(Sigma)
+#
+#   e_th <- Z - theta.offset + matrix(beta, nrow = N, ncol = K, byrow = TRUE)
+#   e_ze <- RT + zeta.offset - matrix(lambda, nrow = N, ncol = K, byrow = TRUE)
+# #  browser()
+#
+#   for (i in 1:N) {
+#     mu.theta <- e_th[i, ]
+#     mu.zeta <- e_ze[i ,]
+#
+#     mu <- c(mu.theta, mu.zeta)
+#     mu0 <- c(rep(theta.offset, K), rep(zeta.offset, K))
+#     mu_i <- Sigma %*% (solve(sigma0) %*% mu0 + N*solve(sig) %*% mu)
+#     person.param <- mvnfast::rmvn(1, mu = mu_i, sigma = chol.Sigma, isChol = TRUE)
+#
+#     for (k in 1:K) {
+#       theta[i, k] <- person.param[1, k]
+#       zeta[i, k] <- -person.param[1, k + K]
+#     }
+#
+#   }
+
+
+#browser()
+  #th <- MASS::mvrnorm(N, mu = theta.offset, Sigma = matrix(tau), empirical = empirical)
+  #ze <- MASS::mvrnorm(N, mu = zeta.offset, Sigma = matrix(delta), empirical = empirical)
+  # mu <- matrix(cbind(th, ze), nrow = N, ncol = 2, byrow = FALSE)
+  tau.star <- (tau*K^2 - K*tau - sum(abs(nu))) / (K*(K-1))
+  delta.star <- (delta*K^2 - K*delta - sum(abs(nu))) / (K*(K-1))
+
+  Sigma.theta <- matrix(tau.star, nrow = K, ncol = K)
+  diag(Sigma.theta) <- tau + abs(nu)
+  Sigma.zeta <- matrix(delta.star, nrow = K, ncol = K)
+  diag(Sigma.zeta) <- delta + abs(nu)
+
+  #up <- cbind(Sigma.theta, diag(nu))
+  #low <- cbind(diag(nu), Sigma.zeta)
+  #up <- cbind(diag(rep(tau,K)), diag(nu))
+  #low <- cbind(diag(nu), diag(rep(delta, K)))
+  up <- cbind(diag(K) + tau, diag(nu))
+  low <- cbind(diag(nu), diag(sig2k) + delta)
+  sig <- rbind(up, low)
+
+  person.param <- MASS::mvrnorm(N, mu=c(rep(theta.offset, K), rep(zeta.offset, K)), Sigma=sig, empirical = TRUE)
+  theta <- person.param[, 1:K]
+  zeta <- person.param[, (K+1):(2*K)]
+
+  #browser()
+  # up <- cbind(diag(K) + tau - diag(rep(tau,K)), matrix(0, K, K))
+  # low <- cbind(matrix(0, K, K), diag(sig2k) + delta - diag(rep(delta,K)))
+  # sig <- rbind(up, low)
+  # eik_ZRT <-  MASS::mvrnorm(N, mu=rep(0, 2*K), Sigma=sig, empirical = empirical)
+  # #eik_RT <-  MASS::mvrnorm(N, mu=rep(0, K), Sigma=diag(sig2k), empirical = empirical)
+
+  up <- cbind(diag(K) + tau, matrix(0, K, K))
+  low <- cbind(matrix(0, K, K), diag(sig2k) + delta)
+  sig <- rbind(up, low)
+
+  # mu.Z <- theta - matrix(beta, nrow = N, ncol = K, byrow = TRUE)
+  # mu.RT <- matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - zeta
+  # for (i in 1:N) {
+  #   ZRT <- MASS::mvrnorm(1, mu=c(mu.Z[i, ], mu.RT[i, ]), Sigma=sig)
+  #   Z[i, ] <- ZRT[1:K]
+  #   RT[i, ] <- ZRT[(K+1):(2*K)]
+  # }
+
+  Z <- theta - matrix(beta, nrow = N, ncol = K, byrow = TRUE) #+ eik_ZRT[, 1:K]
+  RT <- matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - zeta #+ eik_ZRT[, (K+1):(2*K)]
+
+  #Z <- - matrix(beta, nrow = N, ncol = K, byrow = TRUE) #+ eik_ZRT[, 1:K]
+  #RT <-  matrix(lambda, nrow = N, ncol = K, byrow = TRUE) #+ eik_ZRT[, (K+1):(2*K)]
+
+
+  # th <- ze <- matrix(NA, nrow = N, ncol = K)
+  # for (k in 1:K) {
+  #   out <- MASS::mvrnorm(N, mu = c(theta.offset, zeta.offset), Sigma = matrix(c(tau,0,0,delta), nrow = 2, ncol = 2, byrow = TRUE), empirical = empirical)
+  #   th <- out[, 1]
+  #   ze <- out[, 2]
+  # }
+  #
+  #
+  #
+  # Y <- Z <- RT <- matrix(NA, nrow = N, ncol = K)
+  #
+  #
+  # up <- cbind(diag(rep(tau, K)), diag(nu))
+  # low <- cbind(diag(nu), diag(rep(delta, K)))
+  # sig <- rbind(up, low)
+  #
+  # e_thze <- MASS::mvrnorm(N, mu=rep(0, 2*K), Sigma=sig, empirical = empirical)
+  # eik_Z <-  MASS::mvrnorm(N, mu=rep(0, K), Sigma=diag(rep(1 - tau, K)), empirical = empirical)
+  # eik_RT <-  MASS::mvrnorm(N, mu=rep(0, K), Sigma=diag(sig2k - delta), empirical = empirical)
+  #
+  # Z <- th - matrix(beta, nrow = N, ncol = K, byrow = TRUE) + e_thze[, 1:K] + eik_Z
+  # RT <- matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - ze + e_thze[, (K+1):(2*K)] + eik_RT
+  #
+  # theta <- e_thze[, 1:K]
+  # zeta <- e_thze[, (K+1):(2*K)]
+
+
+  #
+  # person.param <- MASS::mvrnorm(N, mu=c(rep(theta.offset, K), rep(zeta.offset, K)), Sigma=sig, empirical = TRUE)
+  # theta <- person.param[, 1:K]
+  # zeta <- person.param[, (K+1):(2*K)]
+
+  # # # Draw person parameters in pairs for each item
+  #  for (k in 1:K) {
+  # #   for (i in 1:N) {
+  # #   person.param <- MASS::mvrnorm(1, mu=mu[i, ], Sigma=matrix(c(tau_k[k], nu[k],nu[k],delta_k[k]), nrow = 2, ncol = 2, byrow = TRUE))
+  #
+  #    person.param <- MASS::mvrnorm(N, mu=c(theta.offset, zeta.offset), Sigma=matrix(c(tau,nu[k],nu[k],delta), nrow = 2, ncol = 2, byrow = TRUE), empirical = empirical)
+  #    theta[, k] <- person.param[,1]
+  #    zeta[, k] <- person.param[,2]
+  #  #  }
+  #  }
+
+
+      # up <- cbind(matrix(tau, nrow = K, ncol = K) + diag(rep(0.01, K)), diag(nu))
+      # low <- cbind(diag(nu), matrix(delta, nrow = K, ncol = K) + diag(rep(0.01, K)))
+      # sig <- rbind(up, low)
+      # #browser()
+      # person.param <- MASS::mvrnorm(N, mu=c(rep(theta.offset, K), rep(zeta.offset, K)), Sigma=sig, empirical = TRUE)
+      # theta <- person.param[, 1:K]
+      # zeta <- person.param[, (K+1):(2*K)]
+
+  #browser()
+#
+#   # Draw latent responses and response times for each person
+#   Y <- Z <- RT <- matrix(NA, nrow = N, ncol = K)
+#   eik_Z <- MASS::mvrnorm(N, mu=rep(0, K), Sigma=Sigma.irt, empirical = empirical)
+#   eik_RT <- MASS::mvrnorm(N, mu=rep(0, K), Sigma=Sigma.irt, empirical = empirical)
+#   Z <- theta - matrix(beta, nrow = N, ncol = K, byrow = TRUE) + eik_Z
+#   RT <- matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - zeta + eik_RT
+
+  # for (i in 1:N) {
+  #   eik_Z <-
+  #   Z[i, ] <- MASS::mvrnorm(1, mu=theta[i, ] - beta, Sigma=Sigma.irt)
+  #   RT[i, ] <- MASS::mvrnorm(1, mu=lambda - zeta[i, ], Sigma=Sigma.lnrt)
+  # }
+
+  # Truncate latent responses
+  for (k in 1:K) {
+    Y[Z[, k] < 0, k] <- 0
+    Y[Z[, k] > 0, k] <- 1
+  }
+
+  #up <- cbind(diag(rep(tau, N)), diag(rep(nu, N)))
+  #low <- cbind(diag(rep(nu, N)), diag(rep(delta, N)))
+  #sig <- rbind(up, low)
+#browser()
+  #person.param <- MASS::mvrnorm(1, mu=rep(0, 2*N), Sigma=sig, empirical = FALSE)
+  #theta <- person.param[1:N]
+  #zeta <- person.param[(N+1):(2*N)]
+
+#   #for (i in 1:N) {
+#     up <- cbind(matrix(tau, nrow = K, ncol = K) + diag(K), diag(nu))
+#     low <- cbind(diag(nu), matrix(delta, nrow = K, ncol = K) + diag(sig2k))
+#     sig <- rbind(up, low)
+#     #browser()
+#     person.param <- MASS::mvrnorm(N, mu=rep(0, 2*K), Sigma=sig, empirical = TRUE)
+#     theta <- person.param[, 1:K]
+#     zeta <- person.param[, (K+1):(2*K)]
+#   #}
+#   #person.param <- MASS::mvrnorm(N, mu=c(0, 0), Sigma=matrix(c(tau,0,0,delta), nrow = 2, ncol = 2, byrow = TRUE), empirical = TRUE)
+#   #theta <- person.param[, 1]
+#   #zeta <- person.param[, 2]
+#
+#   theta <- theta - mean(theta) + theta.offset
+#   zeta <- zeta - mean(zeta) + zeta.offset
+#
+#   # Sample data
+#   Y <- Z <- RT <- matrix(NA, nrow = N, ncol = K)
+#   Z <- theta - matrix(beta, nrow = N, ncol = K, byrow = TRUE)
+#   RT <- matrix(lambda, nrow = N, ncol = K, byrow = TRUE) - zeta
+#
+#
+# #   for (ii in 1:N) {
+# #     #Z[ii, ] <- rnorm(1, theta[ii] - beta, 1)
+# #     #RT[ii, ] <- rnorm(1, lambda - zeta[ii], sqrt(sig2k))
+# # #browser()
+# #     means.irt <- theta[ii, ] - beta
+# #     means.lnrt <- lambda - zeta[ii, ]
+# #     means <- c(means.irt, means.lnrt)
+# #     ZRT <- MASS::mvrnorm(1, mu=as.numeric(means), Sigma=Sigma, empirical = FALSE)
+# #     Z[ii, ] <- ZRT[1:K]
+# #     RT[ii, ] <- ZRT[(K+1):(2*K)]
+# #   }
+#
+#   for (kk in 1:K) {
+#     Y[Z[, kk] < 0, kk] <- 0
+#     Y[Z[, kk] > 0, kk] <- 1
+#   }
+
+  return(list(Y = Y, RT = RT, Z = Z, lambda = lambda, beta = beta, zeta = zeta, theta = theta,
+              Sigma = Sigma, Sigma.nu = Sigma.nu, Sigma.lnrt = Sigma.lnrt, Sigma.irt = Sigma.irt, sig2k = sig2k, delta = delta, tau = tau, nu = nu))
+}

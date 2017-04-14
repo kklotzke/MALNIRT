@@ -34,17 +34,116 @@ cor(out4$post.means[[2]]$sig2k, dat4.2$sig2k)
 
 
 
-nu1_1 <- c(seq(0.2, -0.05, length.out = 3), seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3))
-nu1_2 <- c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2))
-nu1_1 <- c(rep(-0.7, 5), rep(0.4, 5))
-nu1_2 <- c(rep(-0.1, 5), rep(0.8, 5))
-dat1 <- simdataLNIRT(N = 2500, K = 10, delta = c(0.5,0), tau = c(0.5,0), nu = nu1_1)
-dat2 <- simdataLNIRT(N = 2500, K = 10, delta = c(0.6,0), tau = c(0.6,0), nu = nu1_2, beta = dat1$beta, lambda = dat1$lambda, theta.offset = 0.5)
+library(LNIRT)
+#dat.lnirt <- simLNIRT123(N = 500, K = 10, rho = 0.6, WL = FALSE, td = TRUE, id = TRUE)
+#dat.lnirt <- simLNIRT(N = 500, K = 10, rho = 0.6, WL = FALSE, td = TRUE, id = TRUE)
 
-group <- c(rep(1, 2500), rep(2, 2500))#, rep(3, 350))
+dat5 <- simdataLNIRT(N = 500, K = 10, delta = c(0.6,0), tau = c(0.5,0), nu = c(rep(-0.2, 5), rep(0.4, 5)))
+dat6 <- simdataLNIRTP(N = 500, K = 10, delta = 1, tau = 1, rho=0, nu = c(rep(-0.6, 5), rep(0.6, 5)))
+round(cov(dat6$th, dat6$ze), digits=5)
+round(cov(dat6$th, dat6$th), digits=1)
+round(cov(dat6$ze, dat6$ze), digits=1)
+
+
+round(cov(dat6$Z, dat6$RT), digits=1)
+round(cov(dat6$Z), digits=1)
+round(cov(dat6$RT), digits=1)
+round(cov(dat6$theta, dat6$zeta), digits=1)
+round(cov(dat6$theta, dat6$theta), digits=1)
+round(cov(dat6$zeta, dat6$zeta), digits=1)
+
+round(cov(dat6$theta[,1], dat6$zeta[,1]), digits=2)
+var(dat6$theta[,1])
+var(dat6$zeta[,1])
+
+
+cov(rowMeans(dat6$theta), rowMeans(dat6$zeta))
+cov(rowMeans(dat6$theta), rowMeans(dat6$theta))
+cov(rowMeans(dat6$zeta), rowMeans(dat6$zeta))
+
+cov(rowMeans(dat6$theta[,1:2]), rowMeans(dat6$theta[, 3:4]))
+cov(rowMeans(dat6$zeta[,1:2]), rowMeans(dat6$zeta[, 3:4]))
+cov(dat6$beta, dat6$lambda)
+
+
+#out.lnirt <- LNIRT(Y = Y1, RT = RT1, data = dat.lnirt, XG = 600, WL = FALSE, td = TRUE)
+out.lnirt2 <- LNIRT(Y = Y, RT = RT, data = dat6, XG = 600, WL = FALSE, td = TRUE)
+#s.lnirt2 <- summary(out.lnirt2)
+
+#out5 <- MALNIRT3Steps(Y = dat.lnirt$Y1, RT = dat.lnirt$RT1, XG = 600, est.person = TRUE)
+out52 <- MALNIRT3Steps(Y = Y, RT = RT, data = dat6, XG = 800, est.person = TRUE)
+#out53 <- MAIRT(Y = dat.lnirt$Y1, XG = 600, est.person = FALSE)
+
+mean(out52$post.means[[1]]$nu)
+out52$post.means[[1]]$tau
+out52$post.means[[1]]$delta
+summary(out52$post.means[[1]]$nu + dat6$nu )#diag(cov(dat6$Z, dat6$RT)))#(dat6$nu))
+summary(out52$post.means[[1]]$beta - dat6$beta)
+summary(out52$post.means[[1]]$lambda - dat6$lambda)
+summary(out52$post.means[[1]]$sig2k - dat6$sig2k)
+#cor(out52$post.means[[1]]$theta_i, rowMeans(dat6$theta))
+#cor(out52$post.means[[1]]$zeta_i, rowMeans(dat6$zeta))
+mean(out52$post.means[[1]]$theta_ik[6,1:10]) - mean(dat6$theta[6,1:10])
+
+cor(rowMeans(out52$post.means[[1]]$theta_ik[,1:10]), rowMeans(dat6$theta[,1:10]))
+cor(rowMeans(out52$post.means[[1]]$zeta_ik[,1:10]), rowMeans(dat6$zeta[,1:10]))
+
+theta_all <- rowMeans(out52$post.means[[1]]$theta_ik[,1:10])
+theta_1 <- rowMeans(out52$post.means[[1]]$theta_ik[,1:5])
+theta_2 <- rowMeans(out52$post.means[[1]]$theta_ik[,6:10])
+
+zeta_all <- rowMeans(out52$post.means[[1]]$zeta_ik[,1:10])
+zeta_1 <- rowMeans(out52$post.means[[1]]$zeta_ik[,1:5])
+zeta_2 <- rowMeans(out52$post.means[[1]]$zeta_ik[,6:10])
+
+diag(cor(out52$post.means[[1]]$theta_ik, dat6$theta))
+diag(cor(out52$post.means[[1]]$zeta_ik, dat6$zeta))
+cov(out52$post.means[[1]]$theta_ik, out52$post.means[[1]]$theta_ik)
+cov(out52$post.means[[1]]$zeta_ik, out52$post.means[[1]]$zeta_ik)
+cov(out52$post.means[[1]]$theta_ik, out52$post.means[[1]]$zeta_ik)
+
+summary(out52$post.means[[1]]$theta_ik[,] - dat6$theta[,])
+summary(out52$post.means[[1]]$zeta_ik[,] - dat6$zeta[,])
+
+hist(rowMeans(out52$post.means[[1]]$theta_ik[,1:5]) - rowMeans(dat6$theta[,1:5]), breaks=20)
+summary(out.lnirt2$Mtheta[,1] - rowMeans(dat6$theta[,1:15]))
+summary(rowMeans(out52$post.means[[1]]$zeta_ik[,1:15]) - rowMeans(dat6$zeta[,1:15]))
+summary(out.lnirt2$Mtheta[,2] - rowMeans(dat6$zeta[,1:15]))
+cor(out.lnirt2$Mtheta[,1], rowMeans(dat6$theta[,1:5]))
+cor(out.lnirt2$Mtheta[,2], rowMeans(dat6$zeta[,1:15]))
+
+round(cov(out52$post.means[[1]]$theta_ik, out52$post.means[[1]]$zeta_ik), digits=2)
+
+cor(out52$post.means[[1]]$theta_i, dat.lnirt$theta[, 1])
+cor(out52$post.means[[1]]$zeta_i, dat.lnirt$theta[, 2])
+cov(out52$post.means[[1]]$theta_i, out5$post.means[[1]]$zeta_i)
+cor(out52$post.means[[1]]$theta_i, s.lnirt2$Mtheta[,1])
+cor(out52$post.means[[1]]$zeta_i, s.lnirt2$Mtheta[,2])
+
+
+out5i <- MAIRT(Y = Y, data = dat6, XG = 500, est.person = FALSE)
+summary(out5i$beta - dat4$beta + 1)
+print(mean(out5i$beta))
+out5i$tau
+
+
+#nu1_1 <- c(seq(0.2, -0.05, length.out = 3), seq(-0.1, -0.2, length.out = 4), seq(-0.3, -0.4, length.out = 3))
+#nu1_2 <- c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2))
+nu1_1 <- seq(-0.3, 0.3, length.out = 20)
+nu1_2 <- seq(-0.35, 0.35, length.out = 20)
+dat1 <- simdataLNIRT(N = 500, K = 20, delta = c(0.3,0), tau = c(0.3,0), nu = nu1_1)
+dat2 <- simdataLNIRT(N = 500, K = 20, delta = c(0.4,0), tau = c(0.4,0), nu = nu1_2, beta = dat1$beta, lambda = dat1$lambda, theta.offset = 0.1, zeta.offset = 0.1)
+
+group <- c(rep(1, 500), rep(2, 500))#, rep(3, 350))
 y.all <- rbind(dat1$Y, dat2$Y)#, dat4.3$Y)
 rt.all <- rbind(dat1$RT, dat2$RT)#, dat4.3$RT)
-out4 <- MALNIRT3Steps(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE)
+out4 <- MALNIRT3Steps(Y = y.all, RT = rt.all, group = group, XG = 600, est.person = FALSE, doBIC.zeta = TRUE, doBIC.theta = TRUE)
+BIC.zeta <- out4$BIC.zeta
+BIC.zeta$BIC1 - BIC.zeta$BIC2
+BIC.theta <- out4$BIC.theta
+BIC.theta$BIC1 - BIC.theta$BIC2
+
+
 summary((out4$post.means[[1]]$beta + out4$post.means[[2]]$beta)/2 - dat1$beta)
 summary((out4$post.means[[1]]$lambda + out4$post.means[[2]]$lambda)/2 - dat1$lambda)
 c(out4$post.means[[1]]$theta, out4$post.means[[2]]$theta)#, out4$post.means[[3]]$theta)
@@ -68,23 +167,27 @@ plot(1:10000, out4$samples[[1]]$nu.5, type="l")
 
 
 
-
-dattmp <- simdataLNIRT(N = 500, K = 10, delta = c(0.3,0), tau = c(0.3,0),
+dattmp <- simdataLNIRT(N = 800, K = 10, delta = c(0.3,0), tau = c(0.3,0),
                      nu = rep(-0.1,10), theta.offset = 0)
 
-dat4 <- simdataLNIRT(N = 1000, K = 10, delta = c(0.3,0), tau = c(0.5,0),
-                       nu = c(seq(-0.05, 0.2, length.out = 3), c(0, -0.2, -0.4, 0.05, -0.1), seq(-0.15, 0.2, length.out = 2)), theta.offset = -1, zeta.offset = 1)
+nu <- seq(-0.15, 0.15, length.out = 20)
+dat4 <- simdataLNIRT(N = 800, K = 20, delta = c(0.3,0), tau = c(0.5,0),
+                       nu = nu, theta.offset = 0, zeta.offset = 0)
 
-#dat4 <- simdataLNIRT(N = 250, K = 10, delta = c(0,0), tau = c(0.8,0),
-#                     nu = rep(0,10), theta.offset = -1, zeta.offset = 1)
+out5 <- MALNIRT3Steps(Y = Y, RT = RT, data = dat4, XG = 600, burnin = 0.1, est.person = FALSE, doBIC.nu = TRUE)
+BIC.nu <- out5$BIC.nu[[1]]
 
-diag(cov(dat4$Z, dat4$RT))
-print(mean(dat4$Z))
+out52 <- MALNIRT3Steps(Y = Y, RT = RT, data = dat4, XG = 600, burnin = 0.1, est.person = FALSE, doBIC.nu = FALSE, doBIC.full = TRUE)
+BIC.full <- out52$BIC.full[[1]]
 
-out5 <- MALNIRT3Steps(Y = Y, RT = RT, data = dat4, XG = 600, burnin = 0.1, est.person = FALSE)
+BIC.full$d - BIC.nu$d
+BIC.full$BIC - BIC.nu$BIC
+
 summary(out5$post.means[[1]]$beta - dat4$beta)
 summary(out5$post.means[[1]]$lambda - dat4$lambda)
 summary(out5$post.means[[1]]$nu - dat4$nu)
+summary(out52$post.means[[1]]$nu - dat4$nu)
+
 summary(out5$post.means[[1]]$sig2k - dat4$sig2k)
 out5$post.means[[1]]$tau
 out5$post.means[[1]]$delta
@@ -148,6 +251,7 @@ plot(1:1200, out5$samples[[1]]$tau, type = "l")
 plot(1:1200, out5$samples[[1]]$delta, type = "l")
 plot(1:1200, out5$samples[[1]]$beta.1, type = "l")
 plot(1:1200, out5$samples[[1]]$nu.1, type = "l")
+plot(c(60:600,661:1200), out5$samples[[1]]$nu.1[c(60:600,661:1200)], type = "l")
 plot(1:1200, out5$samples[[1]]$sig2k.2, type = "l")
 plot(1:1200, out5$samples[[1]]$beta.8, type = "l")
 

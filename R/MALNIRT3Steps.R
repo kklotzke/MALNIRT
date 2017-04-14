@@ -3,7 +3,7 @@
 #' @importFrom extraDistr rinvgamma dtnorm rtnorm
 #' @export
 MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, burnin = 0.10, est.person = FALSE,
-                    doBIC.zeta = FALSE, doBIC.theta = FALSE, doBIC.nu = FALSE, silent = FALSE) {
+                    doBIC.zeta = FALSE, doBIC.theta = FALSE, doBIC.nu = FALSE, doBIC.full = FALSE, silent = FALSE) {
 
   ###### Initialize ######
   if (!missing(data)) {
@@ -18,6 +18,9 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     }
   } else {
     data = NULL
+    if(is.null(group)) {
+      group <- rep(1, nrow(Y))
+    }
   }
 
   K <- ncol(Y) # Number of items
@@ -60,6 +63,8 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
   chains <- vector("list", 2) # Two chains
   chains[[1]] <- vector("list", G)
   for (g in 1:G) {
+    Ng <- nrow(RTg[[g]])
+
     chains[[1]][[g]] <- vector("list", 9)
 
     # Item parameters
@@ -80,6 +85,12 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
 
     # Cross-covariance matrix
     chains[[1]][[g]][[9]] <- matrix(NA, nrow = XG, ncol = K) # nu per item
+
+    # Person parameters
+    chains[[1]][[g]][[10]] <- matrix(NA, nrow = XG, ncol = Ng) # Ability theta_i
+    chains[[1]][[g]][[11]] <- matrix(NA, nrow = XG, ncol = Ng) # Speed zeta_i
+    chains[[1]][[g]][[12]] <- array(0, dim = c(XG, Ng, K)) # Ability theta_k
+    chains[[1]][[g]][[13]] <- array(0, dim = c(XG, Ng, K)) # Speed zeta_k
 
     chains[[2]][[g]] <- chains[[1]][[g]]
   }
@@ -163,7 +174,16 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         e$chains[[c]][[g]][[8]][1, ] <- mean(e$param[[g]]$sig2k.mar) #mean(e$chains[[c]][[g]][[7]][1, ]) # mean sig2
 
         # Cross-covariance matrix
-        e$chains[[c]][[g]][[9]][1, ] <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) # nu per item
+        if (doBIC.nu) {
+          e$chains[[c]][[g]][[9]][1, ] <- rep(mean(diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]]))), K) # nu per item
+        }
+        else {
+          e$chains[[c]][[g]][[9]][1, ] <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) # nu per item
+        }
+
+        # Person parameters
+        chains[[1]][[g]][[10]][1, ]  <- 0 # Ability theta_i
+        chains[[1]][[g]][[11]][1, ]  <- 0 # Speed zeta_i
 
         # if(reinit) {
         #   e$chains[[c]][[g]][[6]][1, ] <- e$param[[g]]$delta.cand # delta
@@ -204,7 +224,12 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     #   print(out.cor$nu)
     # }
 
-    e$param[[g]]$nu.cand <- out.cor$nu #+ rnorm(K, 0, 0.2) # diag(cov(e$param[[g]]$Z, e$RTg[[g]])) #rep(0, K) out.cor$nu #
+    if(doBIC.nu) {
+      e$param[[g]]$nu.cand <- rep(mean(out.cor$nu), K)
+    }
+    else {
+      e$param[[g]]$nu.cand <- out.cor$nu #+ rnorm(K, 0, 0.2) # diag(cov(e$param[[g]]$Z, e$RTg[[g]])) #rep(0, K) out.cor$nu #
+    }
     #e$param[[g]]$q.nu <- out.cor$q.nu
 
     # if(g == 1)
@@ -213,8 +238,14 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     #   e$param[[g]]$nu.cand <- dat2$nu
 
 
-    if(reinit)
-      e$param[[g]]$nu.cand <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) * runif(1, 0.8, 1.2) # scale sample covariances
+    if(reinit) {
+      if(doBIC.nu) {
+        e$param[[g]]$nu.cand <- rep(mean(diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) * runif(1, 0.8, 1.2)), K) # scale sample covariances
+      }
+      else {
+        e$param[[g]]$nu.cand <- diag(cov(e$param[[g]]$Z.mar, e$RTg[[g]])) * runif(1, 0.8, 1.2) # scale sample covariances
+      }
+    }
 
     #if(g == 2)
     #  print(e$param[[g]]$tau.cand)
@@ -528,6 +559,7 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
   e$initMar(e)
   e$initChains(reinit = FALSE, which = c(1, 2), e)
   #browser()
+  mh.accept.all <- matrix(0, nrow = G, ncol = 3) # Across all chains
 
   ###### Run MCMC ######
   # For each chain
@@ -600,6 +632,10 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         sig2k.s0 <- chains[[c]][[g]][[7]][xg-1, ]
         sig2.s0 <- chains[[c]][[g]][[8]][xg-1, ]
         nu.s0 <- chains[[c]][[g]][[9]][xg-1, ]
+        theta_i.s0 <- chains[[c]][[g]][[10]][xg-1, ]
+        zeta_i.s0 <- chains[[c]][[g]][[11]][xg-1, ]
+        theta_ik.s0 <- chains[[c]][[g]][[12]][xg-1,,]
+        zeta_ik.s0 <- chains[[c]][[g]][[13]][xg-1,,]
         beta <- chains[[c]][[g]][[1]][xg, ]
         lambda <- chains[[c]][[g]][[2]][xg, ]
 
@@ -619,6 +655,34 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         out.sig2 <- sampleSig2(RT = RTg[[g]], lambda = lambda, zeta = zeta, delta = delta.s0)
         e$chains[[c]][[g]][[7]][xg, ] <- sig2k <- out.sig2$sig2k
         e$chains[[c]][[g]][[8]][xg, ] <- sig2 <- out.sig2$sig2
+
+        ### Sample person parameters ###
+        if (est.person) {
+          #browser()
+          # out.p <- sampleP(Z = param[[g]]$Z, RT = RTg[[g]], theta_i = theta_i.s0, zeta_i = zeta_i.s0, beta = beta, lambda = lambda, theta = theta,
+          #                  zeta = zeta, tau = tau.s0, delta = delta.s0, sig2 = sig2, sig2k = sig2k.s0, nu = nu.s0)
+          # chains[[c]][[g]][[10]][xg, ] <- theta_i <- out.p$theta_i
+          # chains[[c]][[g]][[11]][xg, ] <- zeta_i <- out.p$zeta_i
+#
+#           igroup <- list()
+#           igroup[[1]] <- 1:K
+#           out.p <- sampleP2(Z = param[[g]]$Z, RT = RTg[[g]], igroup = igroup, theta_ik = theta_i.s0, zeta_ik = zeta_i.s0, beta = beta, lambda = lambda, theta = theta,
+#                             zeta = zeta, tau = tau.s0, delta = delta.s0, sig2 = sig2, sig2k = sig2k.s0, nu = nu.s0)
+#           chains[[c]][[g]][[10]][xg, ] <- theta_i <- out.p$theta_ik
+#           chains[[c]][[g]][[11]][xg, ] <- zeta_i <- out.p$zeta_ik
+
+
+          # igroup <- list()
+          # for (k in 1:K) {
+          #   igroup[[k]] <- k
+          # }
+          # out.p <- sampleP2(Z = param[[g]]$Z, RT = RTg[[g]], igroup = igroup, theta_ik = theta_ik.s0, zeta_ik = zeta_ik.s0, beta = beta, lambda = lambda, theta = theta,
+          #                  zeta = zeta, tau = tau.s0, delta = delta.s0, sig2 = sig2, sig2k = sig2k.s0, nu = nu.s0)
+          out.p <- sampleP3(Z = param[[g]]$Z, RT = RTg[[g]], theta_ik = theta_ik.s0, zeta_ik = zeta_ik.s0, beta = beta, lambda = lambda, theta = theta,
+                            zeta = zeta, tau = tau.s0, delta = delta.s0, sig2 = sig2, sig2k = sig2k.s0, nu = nu.s0)
+          chains[[c]][[g]][[12]][xg,,] <- theta_ik <- out.p$theta_ik
+          chains[[c]][[g]][[13]][xg,,] <- zeta_ik <- out.p$zeta_ik
+        }
 
 
         ############################################################################################################
@@ -680,6 +744,8 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
         xg <- xg + 1
       }
     }
+
+    mh.accept.all <- mh.accept.all + mh.accept
   }
 
   # Number of burnin iterations
@@ -703,7 +769,8 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     post.means[[g]]$sig2k <- colMeans((chain.1[[7]][XG.burnin:XG, ] + chain.2[[7]][XG.burnin:XG, ]) / 2)
     post.means[[g]]$sig2 <- mean((chain.1[[8]][XG.burnin:XG, ] + chain.2[[8]][XG.burnin:XG, ]) / 2)
     post.means[[g]]$nu <- colMeans((chain.1[[9]][XG.burnin:XG, ] + chain.2[[9]][XG.burnin:XG, ]) / 2)
-
+    post.means[[g]]$theta_i <- colMeans((chain.1[[10]][XG.burnin:XG, ] + chain.2[[10]][XG.burnin:XG, ]) / 2)
+    post.means[[g]]$zeta_i <- colMeans((chain.1[[11]][XG.burnin:XG, ] + chain.2[[11]][XG.burnin:XG, ]) / 2)
 
     post.means[[g]]$beta.sd <- apply(rbind(chain.1[[1]][XG.burnin:XG, ], chain.2[[1]][XG.burnin:XG, ]), FUN = sd, MARGIN = 2)
     post.means[[g]]$lambda.sd <- apply(rbind(chain.1[[2]][XG.burnin:XG, ], chain.2[[2]][XG.burnin:XG, ]), FUN = sd, MARGIN = 2)
@@ -714,6 +781,8 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     post.means[[g]]$sig2k.sd <- apply(rbind(chain.1[[7]][XG.burnin:XG, ], chain.2[[7]][XG.burnin:XG, ]), FUN = sd, MARGIN = 2)
     post.means[[g]]$sig2.sd <- sd(c(chain.1[[8]][XG.burnin:XG, ], chain.2[[8]][XG.burnin:XG, ]))
     post.means[[g]]$nu.sd <- apply(rbind(chain.1[[9]][XG.burnin:XG, ], chain.2[[9]][XG.burnin:XG, ]), FUN = sd, MARGIN = 2)
+    post.means[[g]]$theta_i.sd <- apply(rbind(chain.1[[10]][XG.burnin:XG, ], chain.2[[10]][XG.burnin:XG, ]), FUN = sd, MARGIN = 2)
+    post.means[[g]]$zeta_i.sd <- apply(rbind(chain.1[[11]][XG.burnin:XG, ], chain.2[[11]][XG.burnin:XG, ]), FUN = sd, MARGIN = 2)
 
     post.means[[g]]$beta.mce <- post.means[[g]]$beta.sd / sqrt(2*(XG - XG.burnin))
     post.means[[g]]$lambda.mce <- post.means[[g]]$lambda.sd / sqrt(2*(XG - XG.burnin))
@@ -724,6 +793,19 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
     post.means[[g]]$sig2k.mce <- post.means[[g]]$sig2k.sd / sqrt(2*(XG - XG.burnin))
     post.means[[g]]$sig2.mce <- post.means[[g]]$sig2.sd / sqrt(2*(XG - XG.burnin))
     post.means[[g]]$nu.mce <- post.means[[g]]$nu.sd / sqrt(2*(XG - XG.burnin))
+    post.means[[g]]$theta_i.mce <- post.means[[g]]$theta_i.sd / sqrt(2*(XG - XG.burnin))
+    post.means[[g]]$zeta_i.mce <- post.means[[g]]$zeta_i.sd / sqrt(2*(XG - XG.burnin))
+
+    theta_ik.1 <- theta_ik.2 <- matrix(0, nrow = length(post.means[[g]]$theta_i), ncol = K)
+    zeta_ik.1 <- zeta_ik.2 <- matrix(0, nrow = length(post.means[[g]]$zeta_i), ncol = K)
+    for(xg in XG.burnin:XG) {
+        theta_ik.1 <- theta_ik.1 + chain.1[[12]][xg,,]
+        theta_ik.2 <- theta_ik.2 + chain.2[[12]][xg,,]
+        zeta_ik.1 <- zeta_ik.1 + chain.1[[13]][xg,,]
+        zeta_ik.2 <- zeta_ik.2 + chain.2[[13]][xg,,]
+    }
+    post.means[[g]]$theta_ik <- (theta_ik.1 / (XG - XG.burnin) + theta_ik.2 / (XG - XG.burnin) ) / 2
+    post.means[[g]]$zeta_ik <- (zeta_ik.1 / (XG - XG.burnin) + zeta_ik.2 / (XG - XG.burnin) ) / 2
 
     samples[[g]] <- data.frame("beta" = rbind(chain.1[[1]][, ], chain.2[[1]][, ]),
                                "lambda" = rbind(chain.1[[2]][, ], chain.2[[2]][, ]),
@@ -734,33 +816,182 @@ MALNIRT3Steps <- function(Y, RT, group = NULL, data, XG = 1000, XG.init = 100, b
                                "sig2k" = rbind(chain.1[[7]][, ], chain.2[[7]][, ]),
                                "sig2" = c(chain.1[[8]][, ], chain.2[[8]][, ]),
                                "nu" = rbind(chain.1[[9]][, ], chain.2[[9]][, ]),
+                               "theta_i" = rbind(chain.1[[10]][, ], chain.2[[10]][, ]),
+                               "zeta_i" = rbind(chain.1[[11]][, ], chain.2[[11]][, ]),
                                "chain" = c(rep(1, XG), rep(2, XG))
     )
 
     g <- g + 1
   }
+  #browser()
 
   ###### Model selection ######
-  if (G > 1) {
+  out.BIC.zeta <- NULL
+  out.BIC.theta <- NULL
+  out.BIC.full <- NULL
+  out.BIC.nu <- NULL
 
-    # Model 1: G speed group parameters vs Model 2: 1 speed group parameter
-    zetag <- deltag <- numeric(G)
-    sig2gk <- list()
+  # For model selection, sample latent responses based on posterior mean estimates
+  if(doBIC.full || doBIC.zeta || doBIC.theta || doBIC.nu) {
+    thetag <- taug <- deltag <- numeric(G)
+    beta <- numeric(K)
+    muTg <- sig2gk <- nug <- list()
+
+    I.min1 <- diag(K-1)
+    J.min1 <- matrix(1, nrow = K-1, ncol = K-1)
+    ones.min1 <- rep(1, K-1)
 
     g <- 1
     while (g <= G) {
-      zetag[g] <- post.means[[g]]$zeta
+      Ng[g] <- nrow(RTg[[g]])
+      beta <- beta + post.means[[g]]$beta
+      thetag[g] <- post.means[[g]]$theta
+      muTg[[g]] <- post.means[[g]]$lambda - post.means[[g]]$zeta
       sig2gk[[g]] <- post.means[[g]]$sig2k
+      taug[g] <- post.means[[g]]$tau
       deltag[g] <- post.means[[g]]$delta
+      nug[[g]] <- post.means[[g]]$nu
+
+      # Sample latent responses based on posterior mean estimates
+      a <- 1/deltag[g] + sum(1/sig2gk[[g]])
+      #sigma <- ( diag(K) + J*taug[g] ) - diag(nug[[g]]) %*% solve( diag(sig2gk[[g]]) + J*deltag[g] ) %*% t(diag(nug[[g]]))
+      mu.ZT <- matrix(NA, ncol = K, nrow = Ng[g])
+      for (k in 1:K)
+      {
+        x <- t( (1/sig2gk[[g]][k]) * ( t(RTg[[g]][, k] - muTg[[g]][k]) - (t(1/sig2gk[[g]]) %*% (t(RTg[[g]]) - matrix(muTg[[g]], nrow = K, ncol = Ng[g]))) / a ) )
+        mu.ZT[, k] <- (thetag[g] - post.means[[g]]$beta[k]) + nug[[g]][k] * x
+      }
+
+      # Partioned matrix components for each of the K items
+      partMatrix <- vector("list", K)
+      for (k in 1:K)
+      {
+        w.min1 <- nug[[g]][-k]/sig2gk[[g]][-k]
+        b.min1 <- sig2gk[[g]][-k] / (sig2gk[[g]][-k] - nug[[g]][-k]^2)
+        c.min1 <- 1/taug[g] + sum(b.min1)
+        A.min1.inv <- b.min1*I.min1 - (b.min1 %*% t(b.min1)) / c.min1
+        d.min1 <- a + t(w.min1) %*% A.min1.inv %*% w.min1
+        g.min1 <- sum(nug[[g]][-k] / (sig2gk[[g]][-k] - nug[[g]][-k]^2)) / c.min1
+        A.min1.inv_w <- (nug[[g]][-k] / (sig2gk[[g]][-k] - nug[[g]][-k]^2) - g.min1*b.min1)
+
+        partMatrix[[k]]$B11 <- 1 + taug[g] - nug[[g]][k]^2 * (1/sig2gk[[g]][k] - ((1/sig2gk[[g]][k])^2) / a)
+        partMatrix[[k]]$B22 <- (1 - (nug[[g]][-k]^2) / sig2gk[[g]][-k])*I.min1 + taug[g]*J.min1 + w.min1 %*% t(w.min1) / a
+        partMatrix[[k]]$B12 <- taug[g]*ones.min1 + ((nug[[g]][k] / sig2gk[[g]][k]) %*% t(w.min1)) / a
+        partMatrix[[k]]$B21 <- t(partMatrix[[k]]$B12)
+        partMatrix[[k]]$B22.inv <- A.min1.inv - (A.min1.inv_w %*% t(A.min1.inv_w)) / d.min1[1,1]
+      }
+
+      out.Z <- sampleZ(Y = Yg[[g]], Z = param[[g]]$Z, mu.Z = param[[g]]$mu.Z, mu.ZT = mu.ZT, partMatrix, likelihood = FALSE)
+
+      for (i in 1:100) {
+        out.Z <- sampleZ(Y = Yg[[g]], Z = out.Z$Z, mu.Z = out.Z$mu.Z, mu.ZT = mu.ZT, partMatrix, likelihood = FALSE)
+      }
+
+      param[[g]]$Z <- out.Z$Z
+      param[[g]]$mu.Z <- out.Z$mu.Z
+      param[[g]]$mu.ZT <- mu.ZT
+
       g <- g + 1
     }
-    out.BIC.zeta <- computeBIC.zeta(RTg, post.means[[1]]$lambda, zetag, sig2gk, deltag)
   }
-  else {
-    out.BIC.zeta <- NULL
+
+  # BIC assuming full model
+  if(doBIC.full) {
+
+    out.BIC.full <- list()
+    lambda <- numeric(K)
+
+    g <- 1
+    while (g <= G) {
+      lambda <- lambda + post.means[[g]]$lambda
+      g <- g + 1
+    }
+    lambda <- lambda / G
+
+    g <- 1
+    while (g <= G) {
+      out.BIC.full[[g]] <- computeBIC.full(RTg[[g]], lambda, post.means[[g]]$zeta, param[[g]]$Z, post.means[[g]]$theta - post.means[[g]]$beta, post.means[[g]]$sig2k, post.means[[g]]$tau, post.means[[g]]$delta, post.means[[g]]$nu)
+      g <- g + 1
+    }
+  }
+
+  # BIC nu restricted nu1 = nu2 = .. = nup
+  if(doBIC.nu) {
+
+    out.BIC.nu <- list()
+    lambda <- numeric(K)
+
+    g <- 1
+    while (g <= G) {
+      lambda <- lambda + post.means[[g]]$lambda
+      g <- g + 1
+    }
+    lambda <- lambda / G
+
+    g <- 1
+    while (g <= G) {
+      out.BIC.nu[[g]] <- computeBIC.nu(RTg[[g]], lambda, post.means[[g]]$zeta, param[[g]]$Z, post.means[[g]]$theta - post.means[[g]]$beta, post.means[[g]]$sig2k, post.means[[g]]$tau, post.means[[g]]$delta, post.means[[g]]$nu)
+      g <- g + 1
+    }
+  }
+
+  if(doBIC.zeta) {
+    if (G > 1) {
+
+      # Model 1: G speed group parameters vs Model 2: 1 speed group parameter
+      zetag <- taug <- deltag <- numeric(G)
+      lambda <- numeric(K)
+      Zg <- muZg <- sig2gk <- nug <- list()
+
+      g <- 1
+      while (g <= G) {
+        lambda <- lambda + post.means[[g]]$lambda
+        zetag[g] <- post.means[[g]]$zeta
+        Zg[[g]] <- param[[g]]$Z
+        muZg[[g]] <- post.means[[g]]$theta - post.means[[g]]$beta
+        sig2gk[[g]] <- post.means[[g]]$sig2k
+        taug[g] <- post.means[[g]]$tau
+        deltag[g] <- post.means[[g]]$delta
+        nug[[g]] <- post.means[[g]]$nu
+
+        g <- g + 1
+      }
+      lambda <- lambda / G
+      out.BIC.zeta <- computeBIC.zeta(RTg, lambda, zetag, Zg, muZg, sig2gk, taug, deltag, nug)
+    }
+  }
+
+  if(doBIC.theta) {
+    if (G > 1) {
+
+      # Model 1: G ability group parameters vs Model 2: 1 ability group parameter
+      thetag <- taug <- deltag <- numeric(G)
+      beta <- numeric(K)
+      Zg <- muTg <- sig2gk <- nug <- list()
+
+      I.min1 <- diag(K-1)
+      J.min1 <- matrix(1, nrow = K-1, ncol = K-1)
+      ones.min1 <- rep(1, K-1)
+
+      g <- 1
+      while (g <= G) {
+        Ng[g] <- nrow(RTg[[g]])
+        Zg[[g]] <- param[[g]]$Z
+        beta <- beta + post.means[[g]]$beta
+        thetag[g] <- post.means[[g]]$theta
+        muTg[[g]] <- post.means[[g]]$lambda - post.means[[g]]$zeta
+        sig2gk[[g]] <- post.means[[g]]$sig2k
+        taug[g] <- post.means[[g]]$tau
+        deltag[g] <- post.means[[g]]$delta
+        nug[[g]] <- post.means[[g]]$nu
+        g <- g + 1
+      }
+      beta <- beta / G
+      out.BIC.theta <- computeBIC.theta(Zg, Zg, beta, thetag, RTg, muTg, sig2gk, taug, deltag, nug)
+    }
   }
 
 
   #print(param[[1]]$beta.mar)
-  return(list(post.means = post.means, samples = samples, XG.burnin = XG.burnin, BIC.zeta = out.BIC.zeta))
+  return(list(post.means = post.means, samples = samples, XG.burnin = XG.burnin, BIC.zeta = out.BIC.zeta, BIC.theta = out.BIC.theta, BIC.full = out.BIC.full, BIC.nu = out.BIC.nu, mh.accept = mh.accept.all/(2*XG)))
 }

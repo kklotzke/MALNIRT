@@ -88,6 +88,242 @@ sampleZ <- function(Y, Z, mu.Z, mu.ZT, partMatrix, likelihood = FALSE)
   return(list(Z = Z, mu.Z = mu.Z, var.Z = var.Z, tmp = tmp, lik_k = lik_k))
 }
 
+#' Sample person parameters
+#' @export
+sampleP <- function(Z, RT, theta_i, zeta_i, beta, lambda, theta = 0, zeta = 0, tau, delta, sig2, sig2k, nu, a.p = 0.5, b.p = 0.5, n0.p = 1)
+{
+  K <- ncol(Z)
+  N <- nrow(Z)
+
+  var.theta <- (1/K + tau)
+  var.zeta <- (sig2/K + delta)
+
+  nu.mean <- mean(nu)
+
+  sigma <- matrix(c(var.theta, nu.mean/K, nu.mean/K, var.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+  mu.theta <- rowMeans(Z) - theta + mean(beta)
+  mu.zeta <- rowMeans(RT) + zeta - mean(lambda)
+
+  mu0.theta <- rep(0, N)
+  mu0.zeta <- rep(0, N)
+  var0.theta <- 10^10
+  var0.zeta <- 10^10
+  sigma0 <- matrix(c(var0.theta, 0, 0, var0.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+
+  Sigma <- solve((solve(sigma0)) + N*solve(sigma))
+  chol.Sigma <- chol(Sigma)
+
+
+  ### Sample item difficulty paramaters ###
+
+  # # Hyper parameters
+  # SS <- b.beta + sum((beta - mean(beta))^2) + (K*n0.beta*mean(beta))/(2*(K + n0.beta))
+  # var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
+  # mu0.beta <- rnorm(1, (K*var0.beta*mean(beta))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
+  #
+  # #print(mu0.beta)
+  # var0.beta <- 10^10
+  # mu0.beta <- 0
+  #
+  # var.beta <- 1/(N*(var.gen) + 1/var0.beta)
+  # mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z)))*(var.gen) + mu0.beta/var0.beta)
+  #
+  # # Draw K item difficulty parameters
+  # beta <- rnorm(K, mu.beta, sqrt(var.beta))
+
+  for (i in 1:N) {
+    mu0 <- c(mu0.theta[i], mu0.zeta[i])
+    mu <- c(mu.theta[i], mu.zeta[i])
+    mu_i <- Sigma %*% (solve(sigma0) %*% mu0 + N*solve(sigma) %*% mu)
+    out <- mvnfast::rmvn(1, mu = mu_i, sigma = chol.Sigma, isChol = TRUE)
+    theta_i[i] <- out[1,1]
+    zeta_i[i] <- -out[1,2]
+  }
+
+  return(list(theta_i = theta_i, zeta_i = zeta_i))
+}
+
+#' Sample person parameters
+#' @export
+sampleP2 <- function(Z, RT, igroup, theta_ik, zeta_ik, beta, lambda, theta = 0, zeta = 0, tau, delta, sig2, sig2k, nu, a.p = 0.5, b.p = 0.5, n0.p = 1)
+{
+  N <- nrow(Z)
+  K <- ncol(Z)
+
+  nu <- -nu
+  #igroups <- unique(igroup)
+  Gi <- length(igroup)
+  if(Gi == 1) {
+    up <- cbind(matrix(tau + 1/K, nrow = 1, ncol = 1), matrix(mean(nu)/(K^2), nrow = 1, ncol = 1))
+    low <- cbind(matrix(mean(nu)/(K^2), nrow = 1, ncol = 1), matrix(delta + sig2/K, nrow = 1, ncol = 1))
+    sigma <- rbind(up, low)
+
+    theta_ik <- matrix(theta_ik, nrow = N, ncol = 1)
+    zeta_ik <- matrix(zeta_ik, nrow = N, ncol = 1)
+
+    var0.theta <- 10^10
+    var0.zeta <- 10^10
+    var0.nu <- 10^9
+    sigma0 <- matrix(c(var0.theta, var0.nu, var0.nu, var0.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+
+    Sigma <- solve((solve(sigma0)) + N*solve(sigma))
+    chol.Sigma <- chol(Sigma)
+  }
+  else {
+    #Zgi <- vector("list", Gi)
+    #RTgi <- vector("list", Gi)
+    Kgi <- nugi <- sig2kgi <- numeric(Gi)
+
+    for (g in 1:Gi) {
+      #Zgi[[g]] <- matrix(Z[, igroup[[g]]], nrow = N, ncol = length(igroup[[g]]))
+      #RTgi[[g]] <- matrix(RT[, igroup[[g]]], nrow = N, ncol = length(igroup[[g]]))
+      Kgi[g] <- length(igroup[[g]])
+      nugi[g] <- sum(nu[igroup[[g]]])
+      sig2kgi[g] <- sum(sig2k[igroup[[g]]])
+    }
+
+    up <- cbind(matrix(tau, nrow = Gi, ncol = Gi) + diag(1/Kgi), diag(nugi/(Kgi^2)))
+    low <- cbind(diag(nugi/(Kgi^2)), matrix(delta, nrow = Gi, ncol = Gi) + diag(sig2kgi/(Kgi^2)))
+    sigma <- rbind(up, low)
+    browser()
+
+    var0.theta <- 10^10
+    var0.zeta <- 10^10
+    var0.nu <- 10^9
+    up0 <- cbind(matrix(var0.theta, nrow = Gi, ncol = Gi), matrix(var0.nu, nrow = Gi, ncol = Gi))
+    low0 <- cbind(matrix(var0.nu, nrow = Gi, ncol = Gi), matrix(var0.zeta, nrow = Gi, ncol = Gi))
+    sigma0 <- rbind(up, low)
+
+    Sigma <- solve((solve(sigma0)) + N*solve(sigma))
+    chol.Sigma <- chol(Sigma)
+  }
+
+  #browser()
+
+  for(i in 1:N) {
+    mu.theta <- mu.zeta <- numeric(Gi)
+    for (g in 1:Gi) {
+      mu.theta[g] <- mean(Z[i, igroup[[g]]]) - theta + mean(beta[igroup[[g]]])
+      mu.zeta[g] <- mean(RT[i, igroup[[g]]]) + zeta - mean(lambda[igroup[[g]]])
+    }
+    #browser()
+    mu <- c(mu.theta, mu.zeta)
+    mu0 <- c(rep(0, 2*Gi))
+    mu_i <- Sigma %*% (solve(sigma0) %*% mu0 + N*solve(sigma) %*% mu)
+    person.param <- mvnfast::rmvn(1, mu = mu_i, sigma = chol.Sigma, isChol = TRUE)
+
+    for (g in 1:Gi) {
+      theta_ik[i, g] <- person.param[1,g]
+      zeta_ik[i, g] <- -person.param[1,g + Gi]
+    }
+  }
+
+  # for (k in 1:K) {
+  #   var.theta <- (1 + tau)
+  #   var.zeta <- (sig2k[k] + delta)
+  #   sigma <- matrix(c(var.theta, nu[k], nu[k], var.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+  #   mu.theta <- Z[, k] - theta + beta[k]
+  #   mu.zeta <- RT[, k] + zeta - lambda[k]
+  #
+  #   mu0.theta <- rep(0, N)
+  #   mu0.zeta <- rep(0, N)
+  #   var0.theta <- 10^10
+  #   var0.zeta <- 10^10
+  #   sigma0 <- matrix(c(var0.theta, 0, 0, var0.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+  #
+  #   Sigma <- solve((solve(sigma0)) + N*solve(sigma))
+  #   chol.Sigma <- chol(Sigma)
+  #
+  #   for (i in 1:N) {
+  #     mu0 <- c(mu0.theta[i], mu0.zeta[i])
+  #     mu <- c(mu.theta[i], mu.zeta[i])
+  #     mu_i <- Sigma %*% (solve(sigma0) %*% mu0 + N*solve(sigma) %*% mu)
+  #     out <- mvnfast::rmvn(1, mu = mu_i, sigma = chol.Sigma, isChol = TRUE)
+  #     #browser()
+  #     theta_ik[i, k] <- out[ ,1]
+  #     zeta_ik[i, k] <- -out[ ,2]
+  #   }
+  # }
+  #
+
+  #browser()
+  #for (i in 1:N) {
+  # up <- cbind(matrix(tau, nrow = K, ncol = K) + diag(K), diag(nu))
+  # low <- cbind(diag(nu), matrix(delta, nrow = K, ncol = K) + diag(sig2k))
+  # sig <- rbind(up, low)
+
+  # for(i in 1:N) {
+  #   mu.theta <- Z[i, ] - theta + beta
+  #   mu.zeta <- RT[i, ] + zeta - lambda
+  #   mu <- c(mu.theta, mu.zeta)
+  #
+  #   person.param <- MASS::mvrnorm(1, mu=mu, Sigma=sig, empirical = FALSE)
+  #   theta_ik[i, ] <- person.param[1:K]
+  #   zeta_ik[i, ] <- -person.param[(K+1):(2*K)]
+  # }
+
+  return(list(theta_ik = theta_ik, zeta_ik = zeta_ik))
+}
+
+#' Sample person parameters
+#' @export
+sampleP3 <- function(Z, RT, theta_ik, zeta_ik, beta, lambda, theta = 0, zeta = 0, tau, delta, sig2, sig2k, nu, a.p = 0.5, b.p = 0.5, n0.p = 1)
+{
+  N <- nrow(Z)
+  K <- ncol(Z)
+
+  for (k in 1:K) {
+    var.theta <- (1 + tau)
+    var.zeta <- (sig2k[k] + delta)
+
+    #var.theta <- (tau)
+    #var.zeta <- (delta)
+    sigma <- matrix(c(var.theta, nu[k], nu[k], var.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+    mu.theta <- Z[, k] - theta + beta[k]
+    mu.zeta <- RT[, k] + zeta - lambda[k]
+
+    mu0.theta <- rep(0, N)
+    mu0.zeta <- rep(0, N)
+    var0.theta <- 10^10
+    var0.zeta <- 10^10
+    sigma0 <- matrix(c(var0.theta, 0, 0, var0.zeta), nrow = 2, ncol = 2, byrow = TRUE)
+
+    Sigma <- solve((solve(sigma0)) + N*solve(sigma))
+    chol.Sigma <- chol(Sigma)
+
+    for (i in 1:N) {
+      mu0 <- c(mu0.theta[i], mu0.zeta[i])
+      mu <- c(mu.theta[i], mu.zeta[i])
+      mu_i <- Sigma %*% (solve(sigma0) %*% mu0 + N*solve(sigma) %*% mu)
+      out <- mvnfast::rmvn(1, mu = mu_i, sigma = chol.Sigma, isChol = TRUE)
+      #browser()
+      theta_ik[i, k] <- out[ ,1]
+      zeta_ik[i, k] <- -out[ ,2]
+    }
+  }
+
+
+  #browser()
+  #for (i in 1:N) {
+  # up <- cbind(matrix(tau, nrow = K, ncol = K) + diag(K), diag(nu))
+  # low <- cbind(diag(nu), matrix(delta, nrow = K, ncol = K) + diag(sig2k))
+  # sig <- rbind(up, low)
+
+  # for(i in 1:N) {
+  #   mu.theta <- Z[i, ] - theta + beta
+  #   mu.zeta <- RT[i, ] + zeta - lambda
+  #   mu <- c(mu.theta, mu.zeta)
+  #
+  #   person.param <- MASS::mvrnorm(1, mu=mu, Sigma=sig, empirical = FALSE)
+  #   theta_ik[i, ] <- person.param[1:K]
+  #   zeta_ik[i, ] <- -person.param[(K+1):(2*K)]
+  # }
+
+  return(list(theta_ik = theta_ik, zeta_ik = zeta_ik))
+}
+
+
+
 #' @export
 sampleBeta <- function(Z, beta, theta = 0, tau, a.beta = 0.5, b.beta = 0.5, n0.beta = 1)
 {
@@ -102,13 +338,13 @@ sampleBeta <- function(Z, beta, theta = 0, tau, a.beta = 0.5, b.beta = 0.5, n0.b
   ### Sample item difficulty paramaters ###
 
   # Hyper parameters
-  SS <- b.beta + sum((beta - mean(beta))^2) + (K*n0.beta*mean(beta))/(2*(K + n0.beta))
-  var0.beta <- 1 / rgamma(1, (K + a.beta)/2, SS/2)
+  SS <- b.beta + sum((beta - mean(beta))^2)/2 + (K*n0.beta*mean(beta))/(2*(K + n0.beta))
+  var0.beta <- 1 / rgamma(1, a.beta + K/2, SS)
   mu0.beta <- rnorm(1, (K*var0.beta*mean(beta))/(var0.beta*(K + n0.beta)), sqrt(1/(var0.beta*(K + n0.beta))))
 
   #print(mu0.beta)
-  var0.beta <- 10^10
-  mu0.beta <- 0
+  #var0.beta <- 10^10
+  #mu0.beta <- 0
 
   var.beta <- 1/(N*(var.gen) + 1/var0.beta)
   mu.beta <- var.beta*((N*(mean(theta) - colMeans(Z)))*(var.gen) + mu0.beta/var0.beta)
@@ -133,8 +369,8 @@ sampleLambda <- function(RT, lambda, zeta = 0, sig2k, delta, a.lambda = 0.5, b.l
   ### Sample item time intensity paramaters ###
 
   # Hyper parameters
-  SS <- b.lambda + sum((lambda - mean(lambda))^2) + (K*n0.lambda*mean(lambda))/(2*(K + n0.lambda))
-  var0.lambda <- 1 / rgamma(1, (K + a.lambda)/2, SS/2)
+  SS <- b.lambda + sum((lambda - mean(lambda))^2)/2 + (K*n0.lambda*mean(lambda))/(2*(K + n0.lambda))
+  var0.lambda <- 1 / rgamma(1, a.lambda + K/2, SS)
   mu0.lambda <- rnorm(1, (K*var0.lambda*mean(lambda))/(var0.lambda*(K + n0.lambda)), sqrt(1/(var0.lambda*(K + n0.lambda))))
 
   var.lambda <- 1/(N*(var.gen) + 1/var0.lambda)
